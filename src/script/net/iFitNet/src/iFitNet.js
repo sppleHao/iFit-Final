@@ -2,16 +2,29 @@ import * as tf from '@tensorflow/tfjs'
 import * as $ from 'jquery'
 
 const DEBUG = 0
-const KEYS = ['r_ankle', 'r_knee', 'r_hip',
-  'l_hip', 'l_knee', 'l_ankle',
-  'plevis', 'thorax', 'upper_neck', 'head_top',
-  'r_wrist', 'r_elbow', 'r_shoulder',
-  'l_shoulder', 'l_elbow', 'l_wrist']
+const JOINT_NAMES = [
+    'rightAnkle',
+    'rightKnee',
+    'rightHip',
+    'leftHip',
+    'leftKnee',
+    'leftAnkle',
+    'pelvis',
+    'thorax',
+    'upperNeck',
+    'headTop',
+    'rightWrist',
+    'rightElbow',
+    'rightShoulder',
+    'leftShoulder',
+    'leftElbow',
+    'leftWrist'
+]
 
 const poseModelTinyUrl =`http://localhost:1234/static/ifitnet_tiny/model.json`
 
 export async function load(){
-    console.log('hg:load model ...')
+    console.log('iFitNet:load model ...')
     try {
         const model = await tf.loadModel(poseModelTinyUrl)
         return new IFitNet(model)
@@ -37,7 +50,7 @@ export class IFitNet {
     this.inres = [256,256]
     this.outres = [64,64]
     this.kpConfidenceThreshold = 1e-6
-    this.keys = KEYS
+    this.keys = JOINT_NAMES
   }
 
   generateTiny(){
@@ -46,7 +59,7 @@ export class IFitNet {
     this.inres = [192,192]
     this.outres = [48,48]
     this.kpConfidenceThreshold = 1e-6
-    this.keys = KEYS
+    this.keys = JOINT_NAMES
   }
 
   //gaussFilter
@@ -152,7 +165,7 @@ export class IFitNet {
       })
   }
 
-  async estimateSinglePose(imageElement, imageScaleFactor, flipHorizontal, outputStride){
+  async estimateSinglePose(imageElement, flipHorizontal){
     const [inputTensor,scale] =tf.tidy(()=>{
         const mean = tf.tensor1d([0.4404, 0.4440, 0.4327])
         const input = tf.fromPixels(imageElement)
@@ -160,7 +173,7 @@ export class IFitNet {
         const scale = tf.tensor1d([imageHeight * 1.0 /this.inres[1],imageWidth*1.0 / this.inres[0]])
 
         let inputTensor = this.normalize(input,mean)
-        if (!flipHorizontal){
+        if (flipHorizontal){
             inputTensor = inputTensor.reverse(1)
         }
         inputTensor = inputTensor.expandDims(0)
