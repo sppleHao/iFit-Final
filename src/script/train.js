@@ -109,16 +109,18 @@ function detectPoseInRealTime(net,video) {
     poseDetectionFrame()
 }
 
-const ip = '139.196.138.230'
+const IN_SERVER = 1;
+
+let url = IN_SERVER==1? 'https://139.196.138.230' : 'http://localhost'
 
 const videoConfig ={
     videoState:'ended',
     videoFile:{
-        bucket:`http://${ip}:1234/static/videos/`,
+        bucket:`${url}:1234/static/videos/`,
     },
-    getVideoListUrl:`http://${ip}:1234/videoList`,
-    jsonUpdateUrl:`http://${ip}:1234/upload`,
-    formDataUpdateUrl:`http://${ip}:1234/videos/upload?courseId=1&intro=1`
+    getVideoListUrl:`${url}:1234/videoList`,
+    jsonUpdateUrl:`${url}:1234/upload`,
+    formDataUpdateUrl:`${url}:1234/videos/upload?courseId=1&intro=1`
 }
 
 /**

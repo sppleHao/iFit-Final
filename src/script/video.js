@@ -420,17 +420,19 @@ const guiState = {
     deactivateArray:[]
 }
 
-const ip = '139.196.138.230'
+const IN_SERVER = 1;
+
+let url = IN_SERVER==1? 'https://139.196.138.230' : 'http://localhost'
 
 const videoConfig ={
     videoState:'ended',
     videoFile:{
-        bucket:`http://${ip}:1234/static/videos/`,
+        bucket:`${url}:1234/static/videos/`,
     },
     poseFile:{
-        bucket:`http://${ip}:1234/static/poses/`,
+        bucket:`${url}:1234/static/poses/`,
     },
-    getVideoListUrl:`http://${ip}:1234/videoList`,
+    getVideoListUrl:`${url}:1234/videoList`,
 }
 
 const Joints = [
