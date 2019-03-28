@@ -8,8 +8,8 @@ import {drawKeypoints,drawSkeleton,drawKeypointsWithMask,drawSkeletonWithMask} f
 import  {filterDeactivateKeypoints} from "./utils/confidence";
 
 //camera and cavans size
-const VIDEO_WIDTH = 400 //540
-const VIDEO_HEIGHT = 400 //600
+const VIDEO_WIDTH = 600 //540
+const VIDEO_HEIGHT = 600 //600
 
 //DEBUG settings
 let DEBUG = 1
@@ -421,14 +421,15 @@ const guiState = {
 }
 
 const videoConfig ={
+    ip:'139.196.138.230',
     videoState:'ended',
     videoFile:{
-        bucket:'http://localhost:1234/static/videos/',
+        bucket:`http://${ip}/static/videos/`,
     },
     poseFile:{
-        bucket:'http://localhost:1234/static/poses/',
+        bucket:`http://${ip}:1234/static/poses/`,
     },
-    getVideoListUrl:'http://localhost:1234/videoList',
+    getVideoListUrl:`http://${ip}:1234/videoList`,
 }
 
 const Joints = [

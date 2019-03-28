@@ -8,7 +8,7 @@ let app = express()
 app.use(
     ['/static','/upload','/videoList'],
     proxy({
-        target: 'http://localhost:3000',
+        target: 'http://139.196.138.230:3000',
     })
 )
 

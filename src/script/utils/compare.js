@@ -167,6 +167,31 @@ function angelToJoint(angelIndexArray) {
 }
 
 /**
+ *
+ */
+export function compareActiveState(baseKps,compareKps) {
+    let missJoints = []
+    let baseKpState = getActiveState(baseKps)
+    let compareKpState = getAcitveState(compareKps)
+    for (let i =0 ; i<baseKps.length;i++) {
+        if (baseKpState[i] && !compareKpState[i]) {
+            missJoints.push(i)
+        }
+    }
+
+    return missJoints
+}
+
+/**
+ *
+ */
+export function getActiveState(kps) {
+    return kps.map(kp=>{
+        return kp.active
+    })
+}
+
+/**
  * @param passState integer array for pass
  */
 function getLowConfidenceJoint(passState) {

@@ -7,8 +7,8 @@ import {drawKeypoints,drawSkeleton} from "./utils/canvas";
 import {filterDeactivateKeypoints} from "./utils/confidence";
 
 //camera and cavans size
-const VIDEO_WIDTH = 400
-const VIDEO_HEIGHT =400
+const VIDEO_WIDTH = 600
+const VIDEO_HEIGHT =600
 
 //DEBUG settings
 let DEBUG = 1
