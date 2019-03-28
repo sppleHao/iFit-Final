@@ -423,10 +423,9 @@ const guiState = {
 const ip = '139.196.138.230'
 
 const videoConfig ={
-
     videoState:'ended',
     videoFile:{
-        bucket:`http://${ip}/static/videos/`,
+        bucket:`http://${ip}:1234/static/videos/`,
     },
     poseFile:{
         bucket:`http://${ip}:1234/static/poses/`,

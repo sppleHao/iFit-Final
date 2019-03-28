@@ -21,7 +21,9 @@ const JOINT_NAMES = [
     'leftWrist'
 ]
 
-const poseModelTinyUrl =`http://localhost:1234/static/ifitnet_tiny/model.json`
+const ip = '139.196.138.230'
+
+const poseModelTinyUrl =`http://${ip}:1234/static/ifitnet_tiny/model.json`
 
 export async function load(){
     console.log('iFitNet:load model ...')
