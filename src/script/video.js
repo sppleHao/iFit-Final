@@ -420,8 +420,10 @@ const guiState = {
     deactivateArray:[]
 }
 
+const ip = '139.196.138.230'
+
 const videoConfig ={
-    ip:'139.196.138.230',
+
     videoState:'ended',
     videoFile:{
         bucket:`http://${ip}/static/videos/`,
