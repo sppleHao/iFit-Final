@@ -68,7 +68,9 @@ export function drawSkeletonWithMask(kps,ctx,color='aqua',lineWidth=2,mask=null)
         if (mask[link[0]]&&mask[link[1]]){
             let joint1 = kps[link[0]]
             let joint2 = kps[link[1]]
-            drawSegment(toTuple(joint1.position), toTuple(joint2.position),color,ctx,lineWidth)
+            if (joint1.active&&joint2.active){
+                drawSegment(toTuple(joint1.position), toTuple(joint2.position), color,ctx,lineWidth)
+            }
         }
     })
 }
@@ -98,7 +100,7 @@ export function drawKeypoints(keypoints, ctx ,color='aqua' ,radius=3) {
 
 export function drawKeypointsWithMask(kps,ctx,color='aqua',radius=3,mask=null){
     for (let i =0;i<kps.length;i++){
-        if (mask[i]){
+        if (mask[i]&&kps[i].active){
             const [y, x] = toTuple(kps[i].position)
             drawPoint(ctx, y, x , radius, color)
         }
