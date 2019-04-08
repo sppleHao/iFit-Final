@@ -21,7 +21,7 @@ const JOINT_NAMES = [
     'leftWrist'
 ]
 
-const IN_SERVER = 1;
+const IN_SERVER = 0;
 
 let url = IN_SERVER==1? 'https://139.196.138.230' : 'http://localhost'
 

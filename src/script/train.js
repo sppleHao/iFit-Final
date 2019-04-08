@@ -1,10 +1,9 @@
-import * as tf from '@tensorflow/tfjs'
 import Stats from 'stats.js'
 import dat from 'dat.gui'
 import $ from 'jquery'
 import * as iFitNet from "./net/iFitNet/src/iFitNet";
-import {drawKeypoints,drawSkeleton} from "./utils/canvas";
-import {filterDeactivateKeypoints} from "./utils/confidence";
+import {loadCanvas, drawKeypoints, drawSkeleton, drawKeypointsWithMask, drawSkeletonWithMask} from "./utils/canvas";
+import {andMask, filterDeactivateKeypoints, getConfidenceMask, getDeactivateMask} from "./utils/confidence";
 
 //camera and cavans size
 const VIDEO_WIDTH = 600
@@ -31,13 +30,9 @@ let allPose = []
  * @param model
  */
 function detectPoseInRealTime(net,video) {
-    const canvas = document.getElementById('output');
+
+    const canvas = loadCanvas('output',VIDEO_WIDTH,VIDEO_HEIGHT)
     const ctx = canvas.getContext('2d');
-
-    canvas.width = VIDEO_WIDTH
-    canvas.height= VIDEO_HEIGHT
-
-
 
     async function poseDetectionFrame() {
 
@@ -60,11 +55,17 @@ function detectPoseInRealTime(net,video) {
         }
 
         //filter deactivate keypoints
-        pose.keypoints = filterDeactivateKeypoints(pose.keypoints,guiState.confidence.minPoseConfidence,guiState.deactiveArray)
+        // pose.keypoints = filterDeactivateKeypoints(pose.keypoints,guiState.confidence.minPoseConfidence,guiState.deactivateArray)
+
+        //get mask
+        let mask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
+        let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
+        mask = andMask(mask,deactivateMask);
+        pose.mask = mask
 
         if (DEBUG){
-            console.log('afterFilter...')
-            console.log(pose)
+            console.log('mask:')
+            console.log(pose.mask)
         }
 
         pose.time = videoTime
@@ -83,13 +84,13 @@ function detectPoseInRealTime(net,video) {
             ctx.restore();
         }
 
-        //todo draw boxes , keypoints and skeleton
+        //draw keypoints
         poses.forEach((pose)=>{
             if (guiState.output.showPoints){
-                drawKeypoints(pose.keypoints,ctx,'red',4)
+                drawKeypointsWithMask(pose.keypoints,ctx,pose.mask)
             }
             if (guiState.output.showSkeleton){
-                drawSkeleton(pose.keypoints,ctx)
+                drawSkeletonWithMask(pose.keypoints,ctx,pose.mask)
             }
         })
 
@@ -109,7 +110,7 @@ function detectPoseInRealTime(net,video) {
     poseDetectionFrame()
 }
 
-const IN_SERVER = 1;
+const IN_SERVER = 0;
 
 let url = IN_SERVER==1? 'https://139.196.138.230' : 'http://localhost'
 
@@ -232,7 +233,7 @@ const guiState = {
         showPoints:true,
         flipHorizontal:false,
     },
-    deactiveArray:[]
+    deactivateArray:[]
 }
 
 const Joints = [
@@ -285,13 +286,13 @@ function setupGui(videoList) {
         c.onChange(function () {
             let index = Joints.indexOf(k.toString())
             if (guiState.joints[k]){
-                guiState.deactiveArray.remove(index)
+                guiState.deactivateArray.remove(index)
             }
             else {
-                guiState.deactiveArray.push(index)
+                guiState.deactivateArray.push(index)
             }
             if(DEBUG) {
-                console.log(guiState.deactiveArray)
+                console.log(guiState.deactivateArray)
             }
         })
     }

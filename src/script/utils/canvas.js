@@ -63,16 +63,16 @@ export function drawSkeleton(keypoints, ctx ,color='aqua' ,lineWidth=2) {
     }
 }
 
-export function drawSkeletonWithMask(kps,ctx,color='aqua',lineWidth=2,mask=null){
-    links.forEach((link) => {
-        if (mask[link[0]]&&mask[link[1]]){
-            let joint1 = kps[link[0]]
-            let joint2 = kps[link[1]]
-            if (joint1.active&&joint2.active){
+export function drawSkeletonWithMask(kps,ctx,mask,color='aqua',lineWidth=2){
+    if (mask){
+        links.forEach((link) => {
+            if (mask[link[0]]&&mask[link[1]]){
+                let joint1 = kps[link[0]]
+                let joint2 = kps[link[1]]
                 drawSegment(toTuple(joint1.position), toTuple(joint2.position), color,ctx,lineWidth)
             }
-        }
-    })
+        })
+    }
 }
 
 /**
@@ -98,13 +98,33 @@ export function drawKeypoints(keypoints, ctx ,color='aqua' ,radius=3) {
     }
 }
 
-export function drawKeypointsWithMask(kps,ctx,color='aqua',radius=3,mask=null){
-    for (let i =0;i<kps.length;i++){
-        if (mask[i]&&kps[i].active){
-            const [y, x] = toTuple(kps[i].position)
+export function drawAllKeypoints(keypoints, ctx ,color='aqua' ,radius=3) {
+    if (keypoints.length==0){
+        return;
+    }
+
+    else{
+        for (let i = 0; i < keypoints.length; i++) {
+            const keypoint = keypoints[i]
+            const [y, x] = toTuple(keypoint.position)
             drawPoint(ctx, y, x , radius, color)
         }
     }
+}
+
+export function drawKeypointsWithMask(kps,ctx,mask,color='aqua',radius=3){
+    if(mask){
+        for (let i =0;i<kps.length;i++){
+            if (mask[i]){
+                const [y, x] = toTuple(kps[i].position)
+                drawPoint(ctx, y, x , radius, color)
+            }
+        }
+    }
+    else {
+        drawAllKeypoints(kps, ctx ,color,radius)
+    }
+
 }
 
 /**
