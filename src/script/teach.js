@@ -2,13 +2,11 @@ import Stats from 'stats.js'
 import dat from 'dat.gui'
 import $ from 'jquery'
 import * as iFitNet from './net/iFitNet/src/iFitNet'
-import {compareTwoPose} from "./utils/compare";
-import {drawKeypoints, drawSkeleton, drawKeypointsWithMask, drawSkeletonWithMask, loadCanvas} from "./utils/canvas";
-import  {filterDeactivateKeypoints} from "./utils/confidence";
-
-//camera and cavans size
-const VIDEO_WIDTH = 600 //540
-const VIDEO_HEIGHT = 600 //600
+import {angelArrayToJointMask, compareTwoPose} from "./utils/compare";
+import {drawKeypointsWithMask, drawSkeletonWithMask, loadCanvas} from "./utils/canvas";
+import {andMask, getConfidenceMask, getDeactivateMask, isBelongMask} from "./utils/confidence";
+import {loadVideoList,loadVideo} from "./utils/video";
+import {getCameraList,loadCamera} from "./utils/camera";
 
 //DEBUG settings
 let DEBUG = 1
@@ -19,63 +17,93 @@ const stats = new Stats()
 /**
  *  get compared pose from poseFIle
  */
-function getComparedPose(video,poseFile,startIndex,fps,seconds=1,length=3) {
+function getComparedPose(pose,video,poseFile,startIndex,fps) {
 
-    let videoTime = video.currentTime
-    let newIndex = startIndex
+    let videoTime = video.currentTime;
+    let newIndex = startIndex;
 
     //get now index
     for (let i=startIndex;i<poseFile.length-1;i++) {
         if (poseFile[i].time<videoTime&&poseFile[i+1].time>videoTime){
-            newIndex = i
+            newIndex = i;
             break;
         }
     }
 
     let comparePoses = []
     for (let i = 0;i<fps/2&&i+newIndex<poseFile.length;i++){
-        comparePoses.push(poseFile[newIndex + i])
+        let temp = poseFile[newIndex + i];
+        if (isBelongMask(temp.mask,pose.mask)){
+            //camera pose mask must larger than file pose mask
+            comparePoses.push(temp);
+        }
     }
 
     return [newIndex,comparePoses]
 }
 
+
+/**
+ * get min element from array
+ * @returns {number}
+ */
 Array.prototype.min = function(){
     return Math.min.apply({},this)
 }
 
 /**
- * compare webcam pose with comparedPoses
+ * remove element from array
+ * @param val
+ */
+Array.prototype.remove = function(val) {
+    var index = this.indexOf(val);
+    if (index > -1) {
+        this.splice(index, 1);
+    }
+}
+
+/**
+ * compare poses
+ * @param currentPose
+ * @param comparedPoses
+ * @param threshHold
+ * @returns {*[]}
  */
 function comparePoseWithVideo(currentPose,comparedPoses,threshHold){
-    let noPassNumberArray = [];
-    let jointsArray = [];
+    let minNoPassNum = 100;
+    let lowConfidenceJointsMask = null;
+    let overConfidenceJointsMask = null;
     for (let i=0;i<comparedPoses.length;i++){
-        let [noPassNum,lowConfidenceJointsBoolean] = compareTwoPose(currentPose,comparedPoses[i],threshHold);
-        if (noPassNum==0){
+        let [lowConfidenceAngelArray,overConfidenceAngelArray] = compareTwoPose(currentPose,comparedPoses[i],threshHold);
+
+        let noPassNum = lowConfidenceAngelArray.length;
+        let passNum = overConfidenceAngelArray.length;
+
+        if (noPassNum==0&&passNum>0){
             return [true,0,[]];
         }
-        if (noPassNum>0){
-            noPassNumberArray.push(noPassNum);
-            jointsArray.push(lowConfidenceJointsBoolean);
+        if (noPassNum>0 && minNoPassNum>noPassNum){
+            minNoPassNum = noPassNum;
+            lowConfidenceJointsMask = angelArrayToJointMask((lowConfidenceAngelArray));
+            overConfidenceJointsMask = angelArrayToJointMask((overConfidenceAngelArray));
         }
     }
 
-    if (noPassNumberArray.length==0){
+    //all pose is invalid
+    if (minNoPassNum==100){
         return [false,-1,[]];
     }
 
-    let minNoPassNum = noPassNumberArray.min();
-    let index = noPassNumberArray.indexOf(minNoPassNum);
 
     if (DEBUG){
         console.log('minNoPass')
         console.log(minNoPassNum)
-        console.log(jointsArray[index])
+        console.log('low confidenceJoint')
+        console.log(lowConfidenceJointsMask)
     }
 
 
-    return [false,minNoPassNum,jointsArray[index]];
+    return [false,minNoPassNum,lowConfidenceJointsMask,overConfidenceJointsMask];
 }
 
 /**
@@ -95,11 +123,11 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
     let font = document.getElementById('font')
 
     //camera canvas
-    const ccanvas = loadCanvas('coutput',VIDEO_WIDTH,VIDEO_HEIGHT)
+    const ccanvas = loadCanvas('coutput',videoConfig.width,videoConfig.height)
     const cctx = ccanvas.getContext('2d');
 
     //video canvas
-    const vcanvas = loadCanvas('voutput',VIDEO_WIDTH,VIDEO_HEIGHT)
+    const vcanvas = loadCanvas('voutput',videoConfig.width,videoConfig.height)
     const vctx = vcanvas.getContext('2d');
 
     //config
@@ -111,7 +139,6 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
         console.log(trainingFramePerSecond)
     }
 
-
     //loop
     async function poseDetectionFrame() {
 
@@ -120,7 +147,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
         }
 
         if (guiState.changeVideoName){
-            video = await loadVideo(guiState.changeVideoName)
+            video = await loadVideo(guiState.changeVideoName,videoConfig,'trainVideo',true)
             poseFile = await loadPoseFile()
             guiState.changeVideoName = null
             videoConfig.videoState = 'ended'
@@ -128,7 +155,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
         //listen change camera
         if (guiState.changeCameraDevice){
-            camera =await loadCamera(guiState.changeCameraDevice)
+            camera =await loadCamera(guiState.changeCameraDevice,videoConfig,'camera')
             guiState.changeCameraDevice = null
         }
 
@@ -137,16 +164,24 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
         //get the pose
         if (net){
+
+            console.time('poseTime')
+
             let poses =[]
             let pose = await net.estimateSinglePose(camera, guiState.output.flipHorizontal)
+
+            console.timeEnd('poseTime')
 
             if (DEBUG){
                 console.log('Estimate...')
                 console.log(pose)
             }
 
-            //filter deactivate keypoints
-            pose.keypoints = filterDeactivateKeypoints(pose.keypoints,guiState.confidence.minPoseConfidence,guiState.deactivateArray)
+            //get mask
+            let mask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
+            let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
+            mask = andMask(mask,deactivateMask);
+            pose.mask = mask
 
             if (DEBUG){
                 console.log('afterFilter...')
@@ -154,70 +189,68 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
             }
 
             //draw canvas
-            cctx.clearRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT)
-            vctx.clearRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT)
+            cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+            vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
             poses.push(pose)
             if (guiState.output.showVideo){
                 if (guiState.output.flipHorizontal) {
                     cctx.save()
                     cctx.scale(-1, 1)
-                    cctx.translate(-VIDEO_WIDTH, 0)
-                    cctx.drawImage(camera,0,0,VIDEO_WIDTH,VIDEO_HEIGHT)
+                    cctx.translate(-videoConfig.width, 0)
+                    cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
                     cctx.restore()
                 }
                 else {
-                    cctx.drawImage(camera,0,0,VIDEO_WIDTH,VIDEO_HEIGHT)
+                    cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
                     cctx.restore()
                 }
 
 
                 vctx.save()
                 // vctx.scale(-1, 1)
-                // vctx.translate(-VIDEO_WIDTH, 0)
-                vctx.drawImage(video,0,0,VIDEO_WIDTH,VIDEO_HEIGHT)
+                // vctx.translate(-videoConfig.width, 0)
+                vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
                 vctx.restore()
             }
 
             //get compared poss
             poses.forEach((pose)=>{
                 //get compare poses (0-1seconds)
-                let [newIndex , comparePoses] =getComparedPose(video,poseFile,startIndex,trainingFramePerSecond)
+                //todo
+                let [newIndex , comparePoses] =getComparedPose(pose,video,poseFile,startIndex,trainingFramePerSecond)
                 startIndex = newIndex
-                let [isPass ,noPassNum , lowConfidenceJointsBoolean] = comparePoseWithVideo(pose,comparePoses,guiState.confidence.compareThreshold)
-
-                let poseFileMask = poseFile[startIndex].keypoints.map(kp=>{
-                    if (kp.active){
-                        return true;
-                    }
-                    else {
-                        return false;
-                    }
-                })
-
-                if (DEBUG){
-                    console.log('comparePose:');
-                    console.log(comparePoses);
-                    console.log(isPass)
-                    console.log(noPassNum)
-                    console.log('kps:')
-                    console.log(pose.keypoints)
-                    console.log('low confidence kps:')
-                    console.log(lowConfidenceJointsBoolean)
-                }
 
                 if (guiState.output.showPoints){
-                    drawKeypoints(poseFile[startIndex].keypoints,vctx)
-                    drawKeypoints(pose.keypoints,cctx)
+                    drawKeypointsWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                    drawKeypointsWithMask(pose.keypoints,cctx,pose.mask)
                 }
                 if (guiState.output.showSkeleton){
-                    drawSkeleton(poseFile[startIndex].keypoints,vctx)
-                    drawSkeleton(pose.keypoints,cctx)
+                    drawSkeletonWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                    drawSkeletonWithMask(pose.keypoints,cctx,pose.mask)
                 }
 
-                if (noPassNum!=-1){
-                    drawKeypointsWithMask(pose.keypoints,cctx,'yellow',3,poseFileMask)
-                    drawSkeletonWithMask(pose.keypoints,cctx,'yellow',3,poseFileMask)
-                    if (noPassNum==0){
+                if (comparePoses.length==0){
+                    font.innerText='未检测到所有关键点';
+                }
+                else {
+                    let [isPass ,noPassNum , lowConfidenceJointMask,overConfidenceJointsMask] = comparePoseWithVideo(pose,comparePoses,guiState.confidence.compareThreshold)
+
+                    if (DEBUG){
+                        console.log('comparePose:');
+                        console.log(comparePoses);
+                        console.log(isPass)
+                        console.log(noPassNum)
+                        console.log('kps:')
+                        console.log(pose.keypoints)
+                        console.log('low confidence kps:')
+                        console.log(lowConfidenceJointMask)
+                    }
+
+                    if (noPassNum==-1){
+                        font.innerText = '无有效关键点'
+                        video.pause()
+                    }
+                    else if (noPassNum==0){
                         font.innerText = noPassNum.toString()
                         if (isPass&&videoConfig.videoState=='pause'){
                             video.play()
@@ -228,148 +261,33 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                         if(!isPass&&videoConfig.videoState=='play') {
                             video.pause()
                         }
-                        drawKeypointsWithMask(pose.keypoints,cctx,'red',5,lowConfidenceJointsBoolean)
-                        drawSkeletonWithMask(pose.keypoints,cctx,'red',4,lowConfidenceJointsBoolean)
+
+                        if (guiState.output.showPoints) {
+                            drawKeypointsWithMask(pose.keypoints,cctx,'green',4,overConfidenceJointsMask)
+                            drawKeypointsWithMask(pose.keypoints,cctx,'red',5,lowConfidenceJointMask)
+                        }
+
+                        if (guiState.output.showSkeleton){
+                            drawSkeletonWithMask(pose.keypoints,cctx,'green',3,overConfidenceJointsMask)
+                            drawSkeletonWithMask(pose.keypoints,cctx,'red',4,lowConfidenceJointMask)
+                        }
                     }
                 }
-                else {
-                    //invalid poses
-                    video.pause()
-                }
-                DEBUG = 0
             })
+
         }
 
         //get fps
         stats.update()
 
+        DEBUG = 0
         requestAnimationFrame(poseDetectionFrame)
 
     }
 
-
     stats.end()
 
     poseDetectionFrame()
-}
-
-/**
- *  get all camera devices
- */
-async function getCameras() {
-
-    let cameras =navigator.mediaDevices.enumerateDevices()
-        .then(function(devices) {
-            let cameras = []
-            devices.forEach(function(device) {
-                if (device.kind=='videoinput'){
-                    let camera = {
-                        name:device.label,
-                        id:device.deviceId
-                    }
-                    cameras.push(camera)
-                }
-            })
-            return cameras
-        })
-        .catch(function(err) {
-            console.log(err.name + ": " + err.message);
-        })
-
-    return cameras
-}
-
-/**
- * set camera steams
- */
-async function setupCamera(deviceId) {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error(
-            'Browser API navigator.mediaDevices.getUserMedia not available');
-    }
-
-    const video = document.getElementById('camera');
-    video.width = VIDEO_WIDTH;
-    video.height = VIDEO_HEIGHT;
-
-    if (deviceId!=null){
-        const stream =await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: {
-                deviceId: { exact: deviceId },
-                width:VIDEO_WIDTH,
-                height:VIDEO_HEIGHT
-            }
-        })
-
-        video.srcObject = stream;
-    }
-    else {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            'audio': false,
-            'video': {
-                facingMode: 'user',
-                width: VIDEO_WIDTH,
-                height: VIDEO_HEIGHT,
-            },
-        })
-
-        video.srcObject = stream;
-    }
-
-    return new Promise((resolve) => {
-        video.onloadedmetadata = () => {
-            resolve(video)
-        }
-    })
-}
-
-async function loadVideoList() {
-    let jResult = null
-    await $.ajax({
-        type:'get',
-        url:videoConfig.getVideoListUrl,
-    }).done(async function (result) {
-        jResult = JSON.parse(result)
-        console.log(jResult)
-    }).fail(function (jqXHR) {
-        alert('Error:' + jqXHR.status);
-        return []
-    });
-
-    return jResult
-}
-
-/**
- * load comic models
- */
-function setupVideo(videoName) {
-    const video = document.getElementById('trainVideo');
-    video.width = VIDEO_WIDTH/5;
-    video.height = VIDEO_WIDTH/5;
-
-    video.src = videoConfig.videoFile.bucket+videoName;
-
-    return video
-}
-
-/**
- * load video
- * @returns {Promise<void>}
- */
-async function loadVideo(videoName) {
-    const video = await setupVideo(videoName)
-    return video
-}
-
-/**
- * load camera
- */
-async function loadCamera(deviceId=null) {
-    const camera = await setupCamera(deviceId)
-    camera.play()
-
-    return camera
 }
 
 const guiState = {
@@ -413,7 +331,7 @@ const guiState = {
     deactivateArray:[]
 }
 
-const IN_SERVER = 1;
+const IN_SERVER = 0;
 
 let url = IN_SERVER==1? 'https://139.196.138.230' : 'http://localhost'
 
@@ -426,6 +344,8 @@ const videoConfig ={
         bucket:`${url}:1234/static/poses/`,
     },
     getVideoListUrl:`${url}:1234/videoList`,
+    width:540,
+    height:480
 }
 
 const Joints = [
@@ -446,17 +366,6 @@ const Joints = [
     'leftElbow',
     'leftWrist'
 ]
-
-/**
- * remove element froma array
- * @param val
- */
-Array.prototype.remove = function(val) {
-    var index = this.indexOf(val);
-    if (index > -1) {
-        this.splice(index, 1);
-    }
-}
 
 /**
  * set up gui config
@@ -546,46 +455,32 @@ async function runDemo(){
     let net =await iFitNet.load()
 
     //get camera list
-    let cameras = await getCameras()
+    let cameras = await getCameraList()
 
     //load videoList
-    let videoList = await loadVideoList()
+    let videoList = await loadVideoList(videoConfig)
 
     //load learning video
-    let video = await loadVideo(guiState.video.name)
-
-    // control video state
-    video.addEventListener('play',function () {
-        videoConfig.videoState='play';
-    });
-
-    video.addEventListener('pause',function () {
-        videoConfig.videoState='pause';
-    });
-
-    video.addEventListener('ended',function () {
-        videoConfig.videoState='ended';
-        video.pause();
-    });
+    let video = await loadVideo(guiState.video.name,videoConfig,'trainVideo')
 
     //load poseFile from Backend
     let poseFile = await loadPoseFile()
 
     //init button
-    let button = document.getElementById('button');
-    button.onclick = function () {
-        if(videoConfig.videoState=='pause'||videoConfig.videoState=='ended'){
-            video.play();
-        }
-        else{
-            video.pause();
-        }
-    };
+    // let button = document.getElementById('button');
+    // button.onclick = function () {
+    //     if(videoConfig.videoState=='pause'||videoConfig.videoState=='ended'){
+    //         video.play();
+    //     }
+    //     else{
+    //         video.pause();
+    //     }
+    // };
 
     if (cameras.length>0){
         //load camera
         guiState.camera.deviceName = cameras[0].name
-        let camera = await loadCamera(cameras[0].id)
+        let camera = await loadCamera(cameras[0].id,videoConfig,'camera')
 
         setupGui(videoList,cameras)
         setupFPS()

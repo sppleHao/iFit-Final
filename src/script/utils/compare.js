@@ -69,9 +69,12 @@ export function getAngelCos(kps,angelIndex) {
 }
 
 /**
- * @param kp1 kepoints from a pose
- * @param kp2 kepoints from the other pose
- * @param angelIndex Index of angels
+ * compare two angels
+ * @param kps1
+ * @param kps2
+ * @param angelIndex
+ * @param threshHold
+ * @returns {boolean} is pass
  */
 function compareTwoAngel(kps1,kps2,angelIndex,threshHold){
     // console.log(angelIndex)
@@ -129,17 +132,18 @@ function getActiveAngels(linkBooleanArray) {
  * @param threshHold
  * @returns {Array} 0 for low confidence ,1 for pass , -1 for deactivate
  */
-function getPassState(cameraKps,compareKps,activeAngels,threshHold) {
+function getPassState(cameraKps,compareKps,activeAngelsMask,threshHold) {
     let angels = []
-    for (let i =0 ;i<activeAngels.length;i++){
-        let angel = null;
-        if (activeAngels[i]){
-            angel = compareTwoAngel(cameraKps,compareKps,i,threshHold)? 1:0;
-            angels.push(angel);
+    for (let i =0 ;i<activeAngelsMask.length;i++){
+        let isPass = null;
+        if (activeAngelsMask[i]){
+            isPass = compareTwoAngel(cameraKps,compareKps,i,threshHold)? 1:0;
+            angels.push(isPass);
         }
         else {
-            angel= -1
-            angels.push(angel);
+            //the angel is no active
+            isPass= -1;
+            angels.push(isPass);
         }
     }
     return angels
@@ -148,7 +152,7 @@ function getPassState(cameraKps,compareKps,activeAngels,threshHold) {
 /**
  * angelToJoint
  */
-function angelToJoint(angelIndexArray) {
+export function angelArrayToJointMask(angelIndexArray) {
     let jointArray = []
     for(let i=0;i<16;i++){
         jointArray.push(false)
@@ -169,22 +173,6 @@ function angelToJoint(angelIndexArray) {
 /**
  *
  */
-export function compareActiveState(baseKps,compareKps) {
-    let missJoints = []
-    let baseKpState = getActiveState(baseKps)
-    let compareKpState = getAcitveState(compareKps)
-    for (let i =0 ; i<baseKps.length;i++) {
-        if (baseKpState[i] && !compareKpState[i]) {
-            missJoints.push(i)
-        }
-    }
-
-    return missJoints
-}
-
-/**
- *
- */
 export function getActiveState(kps) {
     return kps.map(kp=>{
         return kp.active
@@ -192,49 +180,72 @@ export function getActiveState(kps) {
 }
 
 /**
- * @param passState integer array for pass
+ * get Low Confidence Joint
+ * @param passState Array for pass (0 for no pass,1 for pass , -1 for no active)
+ * @returns {*[]}
  */
 function getLowConfidenceJoint(passState) {
-    let noPassNum = 0;
     let lowConfidenceAngel = [];
-    let lowConfidenceJoint = [];
+    let overConfidenceAngel = [];
+
     for(let i=0;i<passState.length;i++){
         if (passState[i]==0){
-            noPassNum++;
-            lowConfidenceAngel.push(i)
+            lowConfidenceAngel.push(i);
+        }
+        else if (passState[i]==1){
+            overConfidenceAngel.push(i);
         }
     }
-    if (noPassNum==0&&passState.indexOf(1)==-1){
-        return [-1,null]
-    }
-    else if (noPassNum==0){
-        return [0,null]
-    }
-    else {
-        lowConfidenceJoint = angelToJoint(lowConfidenceAngel);
-        return [noPassNum,lowConfidenceJoint]
-    }
+
+    // let lowConfidenceJointMask = angelArrayToJointMask(lowConfidenceAngel);
+    // let overConfidenceJointMask = angelArrayToJointMask(overConfidenceAngel);
+
+
+    return [lowConfidenceAngel,overConfidenceAngel]
 }
 
 /**
- * compare two keypoints use angel
- * @param kp1
- * @param kp2
+ * joint mask to angel mask
+ * @param jointMask
+ * @returns {any[]}
+ */
+function jointMaskToAngelMask(jointMask) {
+    let angelMask = angles.map(([link1,link2])=>{
+        let j11 = link1[0];
+        let j12 = link1[1];
+
+        let j21 = link2[0];
+        let j22 = link2[1];
+
+        if (jointMask[j11]&&jointMask[j12]&&jointMask[j21]&&jointMask[j22]){
+            return true;
+        }
+        else {
+            return false;
+        }
+    })
+    return angelMask
+}
+
+/**
+ * compare pose (angels)
+ * @param cameraPose
+ * @param comparePose
  * @param threshHold
- *
+ * @returns {*[]}
+ *  two array for angels index
  */
 export function compareTwoPose(cameraPose,comparePose,threshHold){
-    let activeLinks =  getActiveLinks(cameraPose.keypoints)
-    let activeAngels = getActiveAngels(activeLinks)
+    let activeAngelMask = jointMaskToAngelMask(comparePose.mask)
 
-    let passStates = getPassState(cameraPose.keypoints,comparePose.keypoints,activeAngels,threshHold)
+    let passStates = getPassState(cameraPose.keypoints,comparePose.keypoints,activeAngelMask,threshHold)
 
     if(DEBUG){
         console.log('passState')
         console.log(passStates)
     }
 
-    let [noPassNum ,lowConfidenceJoint] = getLowConfidenceJoint(passStates)
+    let [lowConfidenceAngelArray ,overConfidenceAngelArray] = getLowConfidenceJoint(passStates)
 
-    return [noPassNum,lowConfidenceJoint]
+    return [lowConfidenceAngelArray,overConfidenceAngelArray]
 }

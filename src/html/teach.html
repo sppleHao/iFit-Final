@@ -101,15 +101,16 @@
 <section class="am-container m-service-page" >
     <div class="m-service-container am-avg-sm-2" >
         <!--横向排列两个视频-->
-        <video  width="540" height="480" controls="controls" style="flex:1;float:left">
+        <video id="trainVideo"  width="540" height="480" controls="controls" style="flex:1;float:left;display: none">
             <source src="./video/test.mp4"  type="video/mp4">
         </video>
-        <video  width="540" height="480" controls="controls" style="flex:1;float:right">
+        <video id="camera" width="540" height="480" controls="controls" style="flex:1;float:right;display: none">
             <source src="./video/test.mp4"  type="video/mp4">
         </video>
-
+        <canvas id="coutput" width="540" height="480" style="flex:1;float:left"></canvas>
+        <canvas id="voutput" width="540" height="480" style="flex:1;float:left"></canvas>
     </div>
-
+    <div id="font"></div>
 </section>
 <p style="height: 50px"></p>
 <footer class="m-footer">
@@ -226,6 +227,7 @@
     //end返回顶部
 </script>
 
+<script src="../script/teach.js"></script>
 
 </body>
 </html>

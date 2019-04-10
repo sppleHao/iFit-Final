@@ -2,12 +2,9 @@ import Stats from 'stats.js'
 import dat from 'dat.gui'
 import $ from 'jquery'
 import * as iFitNet from "./net/iFitNet/src/iFitNet";
-import {loadCanvas, drawKeypoints, drawSkeleton, drawKeypointsWithMask, drawSkeletonWithMask} from "./utils/canvas";
-import {andMask, filterDeactivateKeypoints, getConfidenceMask, getDeactivateMask} from "./utils/confidence";
-
-//camera and cavans size
-const VIDEO_WIDTH = 600
-const VIDEO_HEIGHT =600
+import {loadCanvas, drawKeypointsWithMask, drawSkeletonWithMask} from "./utils/canvas";
+import {andMask, getConfidenceMask, getDeactivateMask} from "./utils/confidence";
+import {loadVideoList,loadVideo} from "./utils/video";
 
 //DEBUG settings
 let DEBUG = 1
@@ -31,13 +28,13 @@ let allPose = []
  */
 function detectPoseInRealTime(net,video) {
 
-    const canvas = loadCanvas('output',VIDEO_WIDTH,VIDEO_HEIGHT)
+    const canvas = loadCanvas('output',videoConfig.width,videoConfig.height)
     const ctx = canvas.getContext('2d');
 
     async function poseDetectionFrame() {
 
         if (guiState.changeVideoName){
-            video = await loadVideo(guiState.changeVideoName)
+            video = await loadVideo(guiState.changeVideoName,videoConfig,'trainVideo',true)
             guiState.changeVideoName = null
             allPose = []
             videoConfig.videoState = 'ended'
@@ -75,11 +72,11 @@ function detectPoseInRealTime(net,video) {
             allPose.push(pose)
         }
 
-        ctx.clearRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT)
+        ctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
         if (guiState.output.showVideo){
             ctx.save();
             if (guiState.output.showVideo){
-                ctx.drawImage(video,0,0,VIDEO_WIDTH,VIDEO_HEIGHT)
+                ctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
             }
             ctx.restore();
         }
@@ -121,7 +118,9 @@ const videoConfig ={
     },
     getVideoListUrl:`${url}:1234/videoList`,
     jsonUpdateUrl:`${url}:1234/upload`,
-    formDataUpdateUrl:`${url}:1234/videos/upload?courseId=1&intro=1`
+    formDataUpdateUrl:`${url}:1234/videos/upload?courseId=1&intro=1`,
+    width:540,
+    height:480
 }
 
 /**
@@ -165,41 +164,6 @@ function sendPoseJsonToBackUseFormData(poses) {
         // Not 200:
         alert('Error:' + jqXHR.status);
     });
-}
-
-async function loadVideoList() {
-    let jResult = null
-    await $.ajax({
-        type:'get',
-        url:videoConfig.getVideoListUrl,
-    }).done(async function (result) {
-        jResult = JSON.parse(result)
-        console.log(jResult)
-    }).fail(function (jqXHR) {
-        alert('Error:' + jqXHR.status);
-        return []
-    });
-
-    return jResult
-}
-
-/**
- * load comic models
- */
-function setupVideo(videoName) {
-    const video = document.getElementById('video');
-    video.width = VIDEO_WIDTH;
-    video.height = VIDEO_WIDTH;
-
-    video.src = videoConfig.videoFile.bucket+videoName;
-
-    return video
-}
-
-async function loadVideo(videoName) {
-    const video = await setupVideo(videoName)
-
-    return video
 }
 
 const guiState = {
@@ -307,16 +271,18 @@ function setupGui(videoList) {
 
 async function runDemo(){
 
+
+
     //load pose model
     let net =await iFitNet.load()
     
-    let videoList = await loadVideoList()
+    let videoList = await loadVideoList(videoConfig)
 
     if (DEBUG){
         console.log(typeof(videoList))
     }
 
-    let video = await loadVideo(guiState.video.name)
+    let video = await loadVideo(guiState.video.name,videoConfig,'trainVideo',true)
 
     // control video state
     video.addEventListener('play',function () {
