@@ -17,7 +17,7 @@ const stats = new Stats()
 /**
  *  get compared pose from poseFIle
  */
-function getComparedPose(pose,video,poseFile,startIndex,fps) {
+function getComparedPose(pose,video,poseFile,startIndex,fps,deactivateMask) {
 
     let videoTime = video.currentTime;
     let newIndex = startIndex;
@@ -33,10 +33,14 @@ function getComparedPose(pose,video,poseFile,startIndex,fps) {
     let comparePoses = []
     for (let i = 0;i<fps/2&&i+newIndex<poseFile.length;i++){
         let temp = poseFile[newIndex + i];
-        if (isBelongMask(temp.mask,pose.mask)){
+        if (temp.vmask ==null){
+            temp.vmask = temp.mask
+        }
+        temp.mask = andMask(temp.vmask,deactivateMask)
+        // if (isBelongMask(temp.mask,pose.mask)){
             //camera pose mask must larger than file pose mask
             comparePoses.push(temp);
-        }
+        // }
     }
 
     return [newIndex,comparePoses]
@@ -79,13 +83,16 @@ function comparePoseWithVideo(currentPose,comparedPoses,threshHold){
         let noPassNum = lowConfidenceAngelArray.length;
         let passNum = overConfidenceAngelArray.length;
 
+        // console.log('no pass',noPassNum)
+
         if (noPassNum==0&&passNum>0){
-            return [true,0,[]];
+            overConfidenceJointsMask = andMask(currentPose.mask,angelArrayToJointMask((overConfidenceAngelArray)));
+            return [true,0,[],overConfidenceJointsMask];
         }
         if (noPassNum>0 && minNoPassNum>noPassNum){
             minNoPassNum = noPassNum;
-            lowConfidenceJointsMask = angelArrayToJointMask((lowConfidenceAngelArray));
-            overConfidenceJointsMask = angelArrayToJointMask((overConfidenceAngelArray));
+            lowConfidenceJointsMask = andMask(currentPose.mask,angelArrayToJointMask((lowConfidenceAngelArray)));
+            overConfidenceJointsMask = andMask(currentPose.mask,angelArrayToJointMask((overConfidenceAngelArray)));
         }
     }
 
@@ -114,13 +121,30 @@ function setupFPS() {
     document.body.appendChild(stats.dom);
 }
 
+let finalMark = 0;
+let totalMarks = [];
+
+function computeFinalMark(totalMarks) {
+    let mark = 0;
+    totalMarks.forEach(totalMark=>{
+        mark+=totalMark;
+    })
+
+    finalMark = mark/totalMarks.length;
+
+    totalMarks.splice(0,totalMarks.length)
+
+    return finalMark;
+}
+
 /**
  *  Detect Poses
  * @param camera Video Element
  * @param model
  */
 function detectPoseInRealTime(net,video,camera,poseFile) {
-    let font = document.getElementById('font')
+    let font = document.getElementById('font');
+    let mark = document.getElementById('mark');
 
     //camera canvas
     const ccanvas = loadCanvas('coutput',videoConfig.width,videoConfig.height)
@@ -129,6 +153,9 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
     //video canvas
     const vcanvas = loadCanvas('voutput',videoConfig.width,videoConfig.height)
     const vctx = vcanvas.getContext('2d');
+
+    //mark array
+    let partMarks = []
 
     //config
     let startIndex = 0
@@ -147,7 +174,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
         }
 
         if (guiState.changeVideoName){
-            video = await loadVideo(guiState.changeVideoName,true)
+            video = await loadVideo(guiState.changeVideoName,videoConfig,'trainVideo',true)
             poseFile = await loadPoseFile()
             guiState.changeVideoName = null
             videoConfig.videoState = 'ended'
@@ -155,7 +182,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
         //listen change camera
         if (guiState.changeCameraDevice){
-            camera =await loadCamera(guiState.changeCameraDevice)
+            camera =await loadCamera(guiState.changeCameraDevice,videoConfig,'camera')
             guiState.changeCameraDevice = null
         }
 
@@ -165,12 +192,12 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
         //get the pose
         if (net){
 
-            console.time('poseTime')
+            // console.time('poseTime')
 
             let poses =[]
             let pose = await net.estimateSinglePose(camera, guiState.output.flipHorizontal)
 
-            console.timeEnd('poseTime')
+            // console.timeEnd('poseTime')
 
             if (DEBUG){
                 console.log('Estimate...')
@@ -182,6 +209,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
             let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
             mask = andMask(mask,deactivateMask);
             pose.mask = mask
+
 
             if (DEBUG){
                 console.log('afterFilter...')
@@ -217,7 +245,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
             poses.forEach((pose)=>{
                 //get compare poses (0-1seconds)
                 //todo
-                let [newIndex , comparePoses] =getComparedPose(pose,video,poseFile,startIndex,trainingFramePerSecond)
+                let [newIndex , comparePoses] =getComparedPose(pose,video,poseFile,startIndex,trainingFramePerSecond,deactivateMask)
                 startIndex = newIndex
 
                 if (guiState.output.showPoints){
@@ -231,6 +259,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
                 if (comparePoses.length==0){
                     font.innerText='未检测到所有关键点';
+                    video.pause();
                 }
                 else {
                     let [isPass ,noPassNum , lowConfidenceJointMask,overConfidenceJointsMask] = comparePoseWithVideo(pose,comparePoses,guiState.confidence.compareThreshold)
@@ -239,7 +268,6 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                         console.log('comparePose:');
                         console.log(comparePoses);
                         console.log(isPass)
-                        console.log(noPassNum)
                         console.log('kps:')
                         console.log(pose.keypoints)
                         console.log('low confidence kps:')
@@ -250,26 +278,29 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                         font.innerText = '无有效关键点'
                         video.pause()
                     }
-                    else if (noPassNum==0){
-                        font.innerText = noPassNum.toString()
-                        if (isPass&&videoConfig.videoState=='pause'){
-                            video.play()
-                        }
-                    }
-                    else {
-                        font.innerText = noPassNum.toString()
-                        if(!isPass&&videoConfig.videoState=='play') {
-                            video.pause()
-                        }
+                    else{
+                        if (noPassNum==0){
+                            font.innerText = '通过'
+                            if (guiState.output.showPoints) {
+                                drawKeypointsWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',4)
+                            }
 
-                        if (guiState.output.showPoints) {
-                            drawKeypointsWithMask(pose.keypoints,cctx,'green',4,overConfidenceJointsMask)
-                            drawKeypointsWithMask(pose.keypoints,cctx,'red',5,lowConfidenceJointMask)
+                            if (guiState.output.showSkeleton){
+                                drawSkeletonWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',3)
+                            }
                         }
+                        else {
+                            font.innerText = '未通过'+ noPassNum.toString()
 
-                        if (guiState.output.showSkeleton){
-                            drawSkeletonWithMask(pose.keypoints,cctx,'green',3,overConfidenceJointsMask)
-                            drawSkeletonWithMask(pose.keypoints,cctx,'red',4,lowConfidenceJointMask)
+                            if (guiState.output.showPoints) {
+                                drawKeypointsWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',4)
+                                drawKeypointsWithMask(pose.keypoints,cctx,lowConfidenceJointMask,'red',5)
+                            }
+
+                            if (guiState.output.showSkeleton){
+                                drawSkeletonWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',3)
+                                drawSkeletonWithMask(pose.keypoints,cctx,lowConfidenceJointMask,'red',4)
+                            }
                         }
                     }
                 }
@@ -286,6 +317,34 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
     }
 
     stats.end()
+
+    function computeTotalMark(partMarks,totalMarks) {
+        let totalMark = 0;
+        partMarks.forEach(partMark=>{
+
+        })
+        totalMarks.push(totalMark)
+        //interaction
+        if (totalMarks>0.8){
+            //perfect
+            mark.innerText = 'Perfect';
+        }
+        else if (totalMarks>0.6){
+            //good
+            mark.innerText = 'Good';
+        }
+        else if (totalMarks>0.3){
+            //normal
+            mark.innerText = 'Normal';
+        }
+        else if (totalMarks<0.2){
+            //bad
+            mark.innerText = 'Bad';
+        }
+        partMarks.splice(0,partMarks.length)
+    }
+
+    setInterval(computeTotalMark(partMarks,totalMarks),1000)
 
     poseDetectionFrame()
 }
@@ -463,19 +522,24 @@ async function runDemo(){
     //load learning video
     let video = await loadVideo(guiState.video.name,videoConfig,'trainVideo')
 
+    video.addEventListener('ended',function () {
+        let finalMark = computeFinalMark(totalMarks)
+        alert('总分:'+finalMark.toString())
+    });
+
     //load poseFile from Backend
     let poseFile = await loadPoseFile()
 
-    //init button
-    // let button = document.getElementById('button');
-    // button.onclick = function () {
-    //     if(videoConfig.videoState=='pause'||videoConfig.videoState=='ended'){
-    //         video.play();
-    //     }
-    //     else{
-    //         video.pause();
-    //     }
-    // };
+    // init button
+    let button = document.getElementById('button');
+    button.onclick = function () {
+        if(videoConfig.videoState=='pause'||videoConfig.videoState=='ended'){
+            video.play();
+        }
+        else{
+            video.pause();
+        }
+    };
 
     if (cameras.length>0){
         //load camera

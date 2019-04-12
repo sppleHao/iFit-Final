@@ -5,6 +5,7 @@ import * as iFitNet from "./net/iFitNet/src/iFitNet";
 import {loadCanvas, drawKeypointsWithMask, drawSkeletonWithMask} from "./utils/canvas";
 import {andMask, getConfidenceMask, getDeactivateMask} from "./utils/confidence";
 import {loadVideoList,loadVideo} from "./utils/video";
+import * as cocoSsd from '@tensorflow-models/coco-ssd';
 
 //DEBUG settings
 let DEBUG = 1
@@ -26,10 +27,31 @@ let allPose = []
  * @param camera Video Element
  * @param model
  */
-function detectPoseInRealTime(net,video) {
+function detectPoseInRealTime(net,ssd,video) {
 
     const canvas = loadCanvas('output',videoConfig.width,videoConfig.height)
     const ctx = canvas.getContext('2d');
+
+    const bcanvas = loadCanvas('box',videoConfig.width,videoConfig.height)
+    const bctx = bcanvas.getContext('2d');
+
+    async function detectPerson() {
+        console.time('detect')
+        let objs =await ssd.detect(canvas)
+        objs.forEach(obj=>{
+            if (obj.class=='person'){
+                let [x,y,w,h] = obj.bbox
+                let centerX = x+w/2;
+                let centerY = y+h/2;
+                let max = w>h ? w:h;
+                x = centerX - max/2;
+                y = centerY - max/2;
+                ctx.strokeRect(x,y,max,max)
+                guiState.person = [x,y,max,max]
+            }
+        })
+        console.timeEnd('detect')
+    }
 
     async function poseDetectionFrame() {
 
@@ -81,6 +103,11 @@ function detectPoseInRealTime(net,video) {
             ctx.restore();
         }
 
+        {
+            bctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+            bctx.putImageData(ctx.getImageData(...guiState.person),0,0,...guiState.person)
+        }
+
         //draw keypoints
         poses.forEach((pose)=>{
             if (guiState.output.showPoints){
@@ -104,6 +131,8 @@ function detectPoseInRealTime(net,video) {
 
     stats.end()
 
+    setInterval(detectPerson,400)
+
     poseDetectionFrame()
 }
 
@@ -119,7 +148,7 @@ const videoConfig ={
     getVideoListUrl:`${url}:1234/videoList`,
     jsonUpdateUrl:`${url}:1234/upload`,
     formDataUpdateUrl:`${url}:1234/videos/upload?courseId=1&intro=1`,
-    width:540,
+    width:550,
     height:480
 }
 
@@ -167,6 +196,7 @@ function sendPoseJsonToBackUseFormData(poses) {
 }
 
 const guiState = {
+    person:[0, 0, videoConfig.width, videoConfig.height],
     video:{
         name:'jianshencrop.mp4'
     },
@@ -271,7 +301,8 @@ function setupGui(videoList) {
 
 async function runDemo(){
 
-
+    //load ssd model
+    let ssd = await cocoSsd.load()
 
     //load pose model
     let net =await iFitNet.load()
@@ -307,7 +338,7 @@ async function runDemo(){
     setupGui(videoList)
     setupFPS()
 
-    detectPoseInRealTime(net,video)
+    detectPoseInRealTime(net,ssd,video)
 }
 
 runDemo()

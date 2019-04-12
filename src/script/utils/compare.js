@@ -210,7 +210,11 @@ function getLowConfidenceJoint(passState) {
  * @returns {any[]}
  */
 function jointMaskToAngelMask(jointMask) {
-    let angelMask = angles.map(([link1,link2])=>{
+    let angelMask = angles.map(([linkIndex1,linkIndex2])=>{
+
+        let link1 = links[linkIndex1]
+        let link2 = links[linkIndex2]
+
         let j11 = link1[0];
         let j12 = link1[1];
 
@@ -241,8 +245,12 @@ export function compareTwoPose(cameraPose,comparePose,threshHold){
     let passStates = getPassState(cameraPose.keypoints,comparePose.keypoints,activeAngelMask,threshHold)
 
     if(DEBUG){
-        console.log('passState')
-        console.log(passStates)
+        // console.log('jointMask')
+        // console.log(comparePose.mask)
+        console.log('AngelMask')
+        console.log(activeAngelMask)
+        // console.log('passState')
+        // console.log(passStates)
     }
 
     let [lowConfidenceAngelArray ,overConfidenceAngelArray] = getLowConfidenceJoint(passStates)

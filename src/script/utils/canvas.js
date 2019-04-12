@@ -64,7 +64,7 @@ export function drawSkeleton(keypoints, ctx ,color='aqua' ,lineWidth=2) {
 }
 
 export function drawSkeletonWithMask(kps,ctx,mask,color='aqua',lineWidth=2){
-    if (mask){
+    if (mask!=null&&mask.length!=0){
         links.forEach((link) => {
             if (mask[link[0]]&&mask[link[1]]){
                 let joint1 = kps[link[0]]
@@ -113,7 +113,7 @@ export function drawAllKeypoints(keypoints, ctx ,color='aqua' ,radius=3) {
 }
 
 export function drawKeypointsWithMask(kps,ctx,mask,color='aqua',radius=3){
-    if(mask){
+    if(mask!=null&&mask.length!=0){
         for (let i =0;i<kps.length;i++){
             if (mask[i]){
                 const [y, x] = toTuple(kps[i].position)
