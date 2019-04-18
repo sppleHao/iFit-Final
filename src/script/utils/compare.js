@@ -3,6 +3,7 @@ const angles = [[0,1],[1,14],[4,15],[5,4],[6,7],[7,8],[9,10],[10,11]]
 
 let DEBUG = 0;
 
+/*
 const joints={
         rightAnkle:0,
         rightKnee:1,
@@ -21,6 +22,7 @@ const joints={
         leftElbow:14,
         leftWrist:15
 }
+*/
 
 function toTuple({y, x}) {
     return [y, x];

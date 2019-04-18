@@ -310,11 +310,11 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
 const guiState = {
     video:{
-        name:'jianshencrop.mp4'
+        name:'shenduncrop.mp4'
     },
     confidence:{
         minPoseConfidence:0.15,
-        compareThreshold:0.25
+        compareThreshold:0.4
     },
     joints:{
         rightAnkle:true,

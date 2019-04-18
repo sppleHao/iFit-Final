@@ -21,7 +21,7 @@ if (IN_SERVER){
 app.use(
     ['/static','/upload','/videoList'],
     proxy({
-        target: IN_SERVER==1? '://139.196.138.230:3000' : 'http://localhost:3000',
+        target: IN_SERVER==1? 'https://139.196.138.230:3000' : 'http://localhost:3000',
         secure: false
     })
 )

@@ -46,8 +46,9 @@ function detectPoseInRealTime(net,ssd,video) {
                 let max = w>h ? w:h;
                 x = centerX - max/2;
                 y = centerY - max/2;
-                ctx.strokeRect(x,y,max,max)
+                // ctx.strokeRect(x,y,max,max)
                 guiState.person = [x,y,max,max]
+                // guiState.person = obj.bbox
             }
         })
         console.timeEnd('detect')
@@ -104,19 +105,24 @@ function detectPoseInRealTime(net,ssd,video) {
         }
 
         {
+            let imData = ctx.getImageData(...guiState.person)
+            let pose = await net.estimateSinglePose(imData,guiState.output.flipHorizontal)
             bctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
-            bctx.putImageData(ctx.getImageData(...guiState.person),0,0,...guiState.person)
+            bctx.putImageData(imData,0,0)
+            let mask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
+            drawKeypointsWithMask(pose.keypoints,bctx,mask)
+            drawSkeletonWithMask(pose.keypoints,bctx,mask)
         }
 
-        //draw keypoints
-        poses.forEach((pose)=>{
-            if (guiState.output.showPoints){
-                drawKeypointsWithMask(pose.keypoints,ctx,pose.mask)
-            }
-            if (guiState.output.showSkeleton){
-                drawSkeletonWithMask(pose.keypoints,ctx,pose.mask)
-            }
-        })
+        // //draw keypoints
+        // poses.forEach((pose)=>{
+        //     if (guiState.output.showPoints){
+        //         drawKeypointsWithMask(pose.keypoints,ctx,pose.mask)
+        //     }
+        //     if (guiState.output.showSkeleton){
+        //         drawSkeletonWithMask(pose.keypoints,ctx,pose.mask)
+        //     }
+        // })
 
         stats.update()
 
