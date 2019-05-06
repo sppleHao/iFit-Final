@@ -25,7 +25,7 @@ const IN_SERVER = 0;
 
 let url = IN_SERVER==1? 'https://139.196.138.230' : 'http://localhost'
 
-const poseModelTinyUrl =`${url}:1234/static/iFitNet/model.json`
+const poseModelTinyUrl =`${url}:1234/static/tfjs/model.json`
 
 export async function load(){
     console.log('iFitNet:load model ...')
@@ -187,7 +187,7 @@ export class IFitNet {
     })
 
 
-      const h2 = await this.model.predict(inputTensor)
+      const [h1,h2] = await this.model.predict(inputTensor)
 
       const [j,s] =await this.postProcessHeatap(h2,this.kpConfidenceThreshold,scale)
 
