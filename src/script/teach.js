@@ -1,12 +1,13 @@
 import Stats from 'stats.js'
 import dat from 'dat.gui'
 import $ from 'jquery'
-import * as iFitNet from './net/iFitNet/src/iFitNet'
+import * as loadModel from "./net/iFitNet/src/loadModel"
 import {angelArrayToJointMask, compareTwoPose} from "./utils/compare";
 import {drawKeypointsWithMask, drawSkeletonWithMask, loadCanvas} from "./utils/canvas";
 import {andMask, getConfidenceMask, getDeactivateMask, isBelongMask} from "./utils/confidence";
 import {loadVideoList,loadVideo} from "./utils/video";
 import {getCameraList,loadCamera} from "./utils/camera";
+import {getFrontUrl} from "./config";
 
 //DEBUG settings
 let DEBUG = 1
@@ -349,19 +350,17 @@ const guiState = {
     deactivateArray:[]
 }
 
-const IN_SERVER = 0;
-
-let url = IN_SERVER==1? 'https://139.196.138.230' : 'http://localhost'
+const url = getFrontUrl()
 
 const videoConfig ={
     videoState:'ended',
     videoFile:{
-        bucket:`${url}:1234/static/videos/`,
+        bucket:`${url}/static/videos/`,
     },
     poseFile:{
-        bucket:`${url}:1234/static/poses/`,
+        bucket:`${url}/static/poses/`,
     },
-    getVideoListUrl:`${url}:1234/videoList`,
+    getVideoListUrl:`${url}/videoList`,
     width:540,
     height:480
 }
@@ -470,7 +469,7 @@ async function loadPoseFile(){
 async function runDemo(){
 
     //load pose model
-    let net =await iFitNet.load()
+    let net =await loadModel.load()
 
     //get camera list
     let cameras = await getCameraList()

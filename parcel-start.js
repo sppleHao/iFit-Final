@@ -4,12 +4,11 @@ const express = require('express')
 const fs = require('fs')
 const http = require('http')
 const https = require('https')
+const config = require('./src/script/config')
 var app = express()
-
-const IN_SERVER = 0
-
-
 var credentials = null
+
+const [IN_SERVER ,PORT] = config.getFrontEnvironment();
 //init https
 if (IN_SERVER){
     const privateKey  = fs.readFileSync('/home/public/private.pem', 'utf8');
@@ -21,7 +20,7 @@ if (IN_SERVER){
 app.use(
     ['/static','/upload','/videoList'],
     proxy({
-        target: IN_SERVER==1? 'https://139.196.138.230:3000' : 'http://localhost:3000',
+        target:config.getBackUrl(),
         secure: false
     })
 )
@@ -33,10 +32,10 @@ app.use(bundler.middleware())
 //listen
 if (IN_SERVER){
     const httpsServer = https.createServer(credentials, app);
-    httpsServer.listen(1234)
+    httpsServer.listen(PORT)
 }
 else {
-    app.listen(Number(process.env.PORT || 1234))
+    app.listen(PORT)
 }
 
 

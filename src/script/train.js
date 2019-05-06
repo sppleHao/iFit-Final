@@ -1,11 +1,12 @@
 import Stats from 'stats.js'
 import dat from 'dat.gui'
 import $ from 'jquery'
-import * as iFitNet from "./net/iFitNet/src/iFitNet";
+import * as loadModel from "./net/iFitNet/src/loadModel"
 import {loadCanvas, drawKeypointsWithMask, drawSkeletonWithMask} from "./utils/canvas";
 import {andMask, getConfidenceMask, getDeactivateMask} from "./utils/confidence";
 import {loadVideoList,loadVideo} from "./utils/video";
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
+import {getFrontUrl} from "./config";
 
 //DEBUG settings
 let DEBUG = 1
@@ -142,18 +143,16 @@ function detectPoseInRealTime(net,ssd,video) {
     poseDetectionFrame()
 }
 
-const IN_SERVER = 0;
-
-let url = IN_SERVER==1? 'https://139.196.138.230' : 'http://localhost'
+const url = getFrontUrl()
 
 const videoConfig ={
     videoState:'ended',
     videoFile:{
-        bucket:`${url}:1234/static/videos/`,
+        bucket:`${url}/static/videos/`,
     },
-    getVideoListUrl:`${url}:1234/videoList`,
-    jsonUpdateUrl:`${url}:1234/upload`,
-    formDataUpdateUrl:`${url}:1234/videos/upload?courseId=1&intro=1`,
+    getVideoListUrl:`${url}/videoList`,
+    jsonUpdateUrl:`${url}/upload`,
+    formDataUpdateUrl:`${url}/videos/upload?courseId=1&intro=1`,
     width:550,
     height:480
 }
@@ -313,7 +312,7 @@ async function runDemo(){
     let ssd = null
 
     //load pose model
-    let net =await iFitNet.load()
+    let net =await loadModel.load()
     
     let videoList = await loadVideoList(videoConfig)
 

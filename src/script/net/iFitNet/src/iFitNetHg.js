@@ -1,5 +1,6 @@
 import * as tf from '@tensorflow/tfjs'
 import * as $ from 'jquery'
+import {getFrontUrl} from "../../../config";
 
 const DEBUG = 0
 const JOINT_NAMES = [
@@ -21,25 +22,7 @@ const JOINT_NAMES = [
     'leftWrist'
 ]
 
-const IN_SERVER = 0;
-
-let url = IN_SERVER==1? 'https://139.196.138.230' : 'http://localhost'
-
-const poseModelTinyUrl =`${url}:1234/static/iFitNet/model.json`
-
-export async function load(){
-    console.log('iFitNet:load model ...')
-    try {
-        const model = await tf.loadModel(poseModelTinyUrl)
-        return new IFitNet(model)
-    }
-    catch (e) {
-        console.log('cannot load hg model.')
-        console.log(e)
-    }
-}
-
-export class IFitNet {
+export class IFitNetHourglass {
   /**
    * initilize
    */
@@ -187,7 +170,7 @@ export class IFitNet {
     })
 
 
-      const h2 = await this.model.predict(inputTensor)
+      const [h1,h2] = await this.model.predict(inputTensor)
 
       const [j,s] =await this.postProcessHeatap(h2,this.kpConfidenceThreshold,scale)
 

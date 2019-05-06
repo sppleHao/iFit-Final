@@ -1,7 +1,6 @@
 import * as faceapi from "face-api.js";
 import {loadCamera} from "./utils/webcam";
 import {drawPoint, loadCanvas} from "./utils/canvas";
-import * as iFitNet from "./net/iFitNet/src/iFitNet";
 
 
 const guiState = {
@@ -16,19 +15,53 @@ const guiState = {
     },
     //当前分数
     mark:0,
-    //17个点的脸部边缘
-    face:null,
     //蘑菇的框
     mushroom:null,
+    //人脸中心点 x默认0.5*600  y默认500
+    middlePoint:{
+        x:0.5*600,
+        y:500
+    }
+}
+
+
+
+/**
+ * 创建mushroom
+ * @param x
+ * @param y
+ * @param w
+ * @param h
+ * @returns {Object}
+ */
+function createMushroom(x,y,w,h){
+    let mushroom=new Object
+    mushroom.x=x
+    mushroom.y=y
+    mushroom.w=w
+    mushroom.h=h
+    return mushroom
 }
 
 /**
- * 判断face和mushrrom是否接触(点是否在框里面)
+ * 判断face和mushroom是否接触(点是否在框里面)
  * @param face 17个点的脸部边缘 point = {x ,y}
- * @param mushroom 蘑菇的框 [x,y,w,h]
+ * @param mushroom 蘑菇的框 [x,y,w,h] x,y左上角的点
  */
-function isFaceTouchMushroom(face,mushroom) {
+function isFaceTouchMushroom(face) {
+    let flag=false
+    const landmarks = face.landmarks
+    const jawOutline = landmarks.getJawOutline()
 
+    //console.log(jawOutline)
+    jawOutline.forEach(({x,y})=>{
+        if(x>=guiState.mushroom.x && x<=guiState.mushroom.x+guiState.mushroom.w
+            && y>=guiState.mushroom.y && y<=guiState.mushroom.y+guiState.mushroom.h){
+            flag=true
+            return true;
+        }
+    })
+    return flag
 }
 
 /**
@@ -36,7 +69,26 @@ function isFaceTouchMushroom(face,mushroom) {
  * @param canvas 画布
  * @param mark 分数
  */
-function drawMarkBar(canvas,mark) {
+function drawMarkBar(mark) {
+    let canvans=document.getElementById("markbar")
+    // let barctx=canvans.getContext("2d")
+    canvans.style.width=guiState.mark+"%"
+    // barctx.fillStyle="#F00"
+    // barctx.fillRect(0,0,guiState.mark,100)
+}
+
+/**
+ * 画蘑菇
+ */
+function drawMushroom(ctx){
+    let img=document.getElementById("img")
+    ctx.drawImage(img,guiState.mushroom.x,guiState.mushroom.y,guiState.mushroom.w,guiState.mushroom.h)
+}
+
+/**
+ * 满分弹出框
+ */
+function successBox(){
 
 }
 
@@ -45,7 +97,7 @@ function drawMarkBar(canvas,mark) {
  * @param webcam 摄像头
  * @param net 人脸识别网络
  */
-function interactions(webcam,net) {
+function interactions(webcam) {
 
     //set up canvas
     //加载canvas控件
@@ -54,6 +106,14 @@ function interactions(webcam,net) {
     //get ctx
     //获得ctx内容
     let ctx = canvas.getContext('2d')
+
+
+    //蘑菇生成——基础版
+    let positionX=guiState.canvas.width*0.25
+    let positionY=guiState.canvas.height*0.6
+    //蘑菇生成——优化版（待完善）
+    // let positionX=guiState.middlePoint.x+guiState.canvas.width*0.3
+    // let positionY=guiState.middlePoint.y
 
     async function detectFaceAndDoInteractions() {
 
@@ -78,40 +138,65 @@ function interactions(webcam,net) {
             ctx.drawImage(webcam,0,0,guiState.canvas.width,guiState.canvas.height)
         }
 
+
         //Debug用 画出人脸边缘框
         if (face!=null){
             const landmarks = face.landmarks
             const jawOutline = landmarks.getJawOutline()
-            console.log(jawOutline)
+            guiState.middlePoint=jawOutline[jawOutline.length/2+1]
+            //console.log(jawOutline)
             jawOutline.forEach(({x,y})=>{
                 drawPoint(ctx, y, x, 2, 'aqua')
             })
         }
 
-        //todo
+        guiState.mushroom=createMushroom(positionX,positionY,50,50)
+        drawMushroom(ctx)
+        //todo 得分显示
         //draw mark line
         //画出得分条
-        drawMarkBar(ctx,guiState.mark)
+        drawMarkBar(guiState.mark)
 
         //3.if face exist
         //3.如果人脸存在
-        if (guiState.face!=null){
+        if (face!=null){
             //if mushroom exist
             //如果蘑菇存在
             if (guiState.mushroom){
                 //4.if touch mushroom
                 //如果脸部框接触到蘑菇
-                if (isFaceTouchMushroom){
+                if (isFaceTouchMushroom(face)){
                     //4.1 change mark
                     //修改得分
+                    guiState.mark+=8
+                    console.log(guiState.mark.toString())
+                    document.getElementById("mark").innerHTML="得分："+guiState.mark;
                     //4.2 remove mushroom
+
                     //重新设置蘑菇
+                    //蘑菇生成——基础版
+                    if(positionX==guiState.canvas.width*0.25){
+                        positionX=guiState.canvas.width*0.7
+                    }
+                    else if(positionX==guiState.canvas.width*0.7){
+                        positionX=guiState.canvas.width*0.25
+                    }
+                    //蘑菇生成——优化版（待完善）
+                    // if(positionX>guiState.middlePoint.x){
+                    //     positionX=guiState.middlePoint.x-guiState.canvas.width*0.3
+                    // }else if(positionX<guiState.middlePoint.x){
+                    //     positionX=guiState.middlePoint+guiState.canvas.width*0.3
+                    // }
+                    guiState.mushroom=createMushroom(positionX,positionY,50,50)
+                    drawMushroom(ctx)
                 }
                 //4.else
                 //如果没接触蘑菇
                 else {
                     //keep mushroom
                     //原有位置重绘蘑菇
+                    guiState.mushroom=createMushroom(positionX,positionY,50,50)
+                    drawMushroom(ctx)
                 }
 
             }
@@ -119,9 +204,10 @@ function interactions(webcam,net) {
             else{
                 //new a mushroom
                 //设置并绘制蘑菇
+                guiState.mushroom=createMushroom(positionX,positionY,50,50)
+                drawMushroom(ctx)
             }
         }
-
         //播放下一帧
         requestAnimationFrame(detectFaceAndDoInteractions);
     }
@@ -131,22 +217,19 @@ function interactions(webcam,net) {
 
 async function bindPage() {
 
-    //load pose model
-    let net =await iFitNet.load()
-
     //load face detection network
     await faceapi.loadFaceDetectionModel('http://localhost:1234/static/face/ssd_mobilenetv1_model-weights_manifest.json');
     await faceapi.loadFaceLandmarkModel('http://localhost:1234/static/face/face_landmark_68_model-weights_manifest.json')
 
-    console.log(faceapi.nets)
+    //console.log(faceapi.nets)
 
     //set up webcam
     const webcam = await loadCamera('webcam',null,guiState.webcam.width,guiState.webcam.height);
 
-    console.log(webcam)
+    //console.log(webcam)
 
     //detect face and do interactions
-    interactions(webcam,net)
+    interactions(webcam)
 }
 
 bindPage();

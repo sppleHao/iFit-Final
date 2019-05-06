@@ -1,4 +1,5 @@
 @charset "UTF-8";
+
 body {
   color: #2b3242;
 }
@@ -126,7 +127,7 @@ a:hover,
   width: 165px;
   color: #fff;
   text-indent: -9999px;
-  background: url('../images/iFitLogo_big.png?1444011587') no-repeat left center;
+  background: url('../images/logo4.png?1444011587') no-repeat left center;
   -webkit-background-size: 125px 40px;
   background-size: 130px 60px;
   margin-right: 20px;
@@ -157,7 +158,7 @@ a:hover,
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  padding-top: 260px;
+  padding-top: 120px;
   color: #fff;
 }
 .m-header-banner h2 {
@@ -189,8 +190,9 @@ a:hover,
   background: #1a1f2a;
 }
 
+/*todo*/
 .m-list-header {
-  height: 550px;
+  height: 300px;
 }
 
 @media screen and (min-width: 960px) and (max-width: 1199px) {
@@ -323,7 +325,7 @@ a:hover,
 }
 @media only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (min-device-pixel-ratio: 2) {
   .m-logo {
-    background: url('../images/logo@2x.png?1444011698');
+    background: url('../images/logo.png?1444011698');
     -webkit-background-size: 125px 40px;
     background-size: 125px 40px;
     background-repeat: no-repeat;
@@ -627,9 +629,15 @@ figure.effect-lily:hover p {
 
 /* 联系我们 */
 .m-contact {
-  background: url('../images/home-bg.jpg?1443942382') 50% 0 no-repeat fixed;
+   background: url('../images/home-bg.jpg?1443942382') 50% 0 no-repeat fixed;
+   padding: 30px 0 50px 0;
+   color: #fff;
+ }
+.m-model {
+  /*background: url('../images/home-bg.jpg?1443942382') 50% 0 no-repeat fixed;*/
+  background-color:#353841 ;
   padding: 30px 0 50px 0;
-  color: #fff;
+  color: #353841;
 }
 .m-contact p {
   color: #fff;

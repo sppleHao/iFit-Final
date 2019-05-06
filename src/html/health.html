@@ -12,10 +12,10 @@
     <meta name="renderer" content="webkit">
     <meta http-equiv="Cache-Control" content="no-siteapp"/>
     <meta name="author" content="http://www.imj2.com/" />
-    <link rel="alternate icon" type="image/png" href="./views/IMJ2V2/images/iFitLogo_big.png">
+    <link rel="alternate icon" type="image/png" href="../J2/views/IMJ2V2/images/logo_head.png">
 
-    <link rel="stylesheet" href="views/IMJ2V2/css/amazeui.min.css">
-    <link rel="stylesheet" href="views/IMJ2V2/css/style.css">
+    <link rel="stylesheet" href="../J2/views/IMJ2V2/css/amazeui.min.css">
+    <link rel="stylesheet" href="../J2/views/IMJ2V2/css/style.css">
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
     <script src="http://apps.bdimg.com/libs/html5shiv/3.7/html5shiv.min.js"></script>
@@ -84,7 +84,7 @@
         </div>
     </div>
 </header>
-<div class="m-header-banner m-list-header" style="background: url(views/IMJ2V2/images/service-bg.jpg) 50% 0 no-repeat fixed;">
+<div class="m-header-banner m-list-header" style="background: url(../J2/views/IMJ2V2/images/service-bg.jpg) 50% 0 no-repeat fixed;">
     <section class="am-container">
         <hgroup data-am-scrollspy="{animation:'slide-bottom', delay: 317}">
             <h2>保健护理</h2>
@@ -92,28 +92,38 @@
         </hgroup>
     </section>
 </div>
+<nav class="m-cat-nav">
+    <ul class="am-container">
 
+    </ul>
+</nav>
 <section class="am-container m-service-page" >
-    <div class="m-service-container am-avg-sm-2" >
-        <!--横向排列两个视频-->
-        <video  width="540" height="480" controls="controls" style="flex:1;float:left">
-            <source src="./video/test.mp4"  type="video/mp4">
-        </video>
-        <video  width="540" height="480" controls="controls" style="flex:1;float:right">
-            <source src="./video/test.mp4"  type="video/mp4">
-        </video>
+    <div class="m-service-container " >
 
+        <video id="webcam" style="display:none;"></video>
+        <div class="am-center" style="width: 600px;height: 600px">
+            <canvas id="canvas" width="600" height="600"></canvas>
+        </div>
+        <img id="img" src="../J2/views/IMJ2V2/images/mogu.png" style="display: none"/>
+
+        <dib  class="am-center " >
+            <p id="mark" class="am-lg-text-center">得分：0</p>
+        </dib>
+        <div class="am-progress am-progress-striped am-progress-sm am-active am-center" style="width: 800px;height: 40px">
+            <canvas  class="am-progress-bar am-progress-bar-secondary" id="markbar" style="width: 0%"></canvas>
+        </div>
+        <!--style="background-color:rgb(214, 214, 214) width="800" height="40" -->
     </div>
 
 </section>
-<p style="height: 50px"></p>
+
 <footer class="m-footer">
 
     <<div class="am-container">
     <section class="am-g m-footer-container">
         <section class="am-u-sm-12 am-u-md-12 am-u-lg-6">
             <h2>关于我们</h2>
-            <p>iFit Studio成立于2018年，专注健身、科学、趣味为一体的创新高端公司，由自主研发的iFitNet提供核心支持<a href="/about.html" rel="nofollow">更多</a></p>
+            <p>iFit Studio成立于2018年，专注健身、科学、趣味为一体的创新高端公司，由自主研发的iFitNet提供核心支持<a href="about.html" rel="nofollow">更多</a></p>
         </section>
         <section class="am-u-sm-12 am-u-md-6 am-u-lg-3">
             <h2>最新资讯</h2>
@@ -149,11 +159,12 @@
 <!--[if lt IE 9]>
 <script src="http://libs.baidu.com/jquery/1.11.1/jquery.min.js"></script>
 <script src="http://cdn.staticfile.org/modernizr/2.8.3/modernizr.js"></script>
-<script src="views/IMJ2V2/js/polyfill/rem.min.js"></script>
-<script src="views/IMJ2V2/js/polyfill/respond.min.js"></script>
-<script src="views/IMJ2V2/js/amazeui.legacy.js"></script>
+<script src="../J2/views/IMJ2V2/js/polyfill/rem.min.js"></script>
+<script src="../J2/views/IMJ2V2/js/polyfill/respond.min.js"></script>
+<script src="../J2/views/IMJ2V2/js/amazeui.legacy.js"></script>
 <![endif]-->
-<script src="views/IMJ2V2/js/echo.min.js"></script>
+<script src="../script/cervical.js" ></script>
+<script src="../J2/views/IMJ2V2/js/echo.min.js"></script>
 <script>
     echo.init({
         offset: 100,
@@ -166,10 +177,10 @@
     // 图片赖加载
 </script>
 <!--[if (gte IE 9)|!(IE)]><!-->
-<script src="views/IMJ2V2/js/jquery.min.js"></script>
-<script src="views/IMJ2V2/js/amazeui.min.js"></script>
+<script src="../J2/views/IMJ2V2/js/jquery.min.js"></script>
+<script src="../J2/views/IMJ2V2/js/amazeui.min.js"></script>
 <!--<![endif]-->
-<script src='views/IMJ2V2/js/jquery.qrcode.min.js'></script>
+<script src='../J2/views/IMJ2V2/js/jquery.qrcode.min.js'></script>
 <script type="text/javascript">
     $(function(){
         var str = "http://www.imj2.com/fuwu/";
