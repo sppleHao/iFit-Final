@@ -68,8 +68,7 @@ function detectPoseInRealTime(net,ssd,video) {
 
         let poses =[]
         let videoTime = video.currentTime
-        let pose = await net.estimateSinglePose(video,  guiState.output.flipHorizontal)
-
+        let pose = await net.estimateSinglePose(video,guiState.output.flipHorizontal)
         if (DEBUG){
             console.log('Estimate...')
             console.log(pose)

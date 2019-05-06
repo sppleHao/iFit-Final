@@ -14,7 +14,7 @@ const front = {
 const back = {
     dev:{
         ip:'localhost',
-        port:300,
+        port:3000,
         type:'http',
     },
     build:{
@@ -27,7 +27,7 @@ const back = {
 const GLOBAL = {
     IFitNet_TYPE:'Hourglass',
     ENVIRONMENT_FRONT:'dev',
-    ENVIRONMENT_BACK:'build',
+    ENVIRONMENT_BACK:'dev',
 }
 
 function toUrl(settings) {

@@ -98,9 +98,10 @@
         <li ><a href="model.html"><i class="icon-chevron-right"></i>模型教学</a></li>
     </ul>
 </nav>
+
 <section class="am-container m-service-page" >
     <div class="m-service-container am-avg-sm-2" >
-        <!--横向排列两个视频-->
+
         <video id="trainVideo"  width="540" height="480" controls="controls" style="flex:1;float:left;display: none">
         </video>
         <video id="camera" width="540" height="480" controls="controls" style="flex:1;float:right;display: none">
@@ -108,11 +109,13 @@
         <canvas id="coutput" width="540" height="480" style="flex:1;float:left"></canvas>
         <canvas id="voutput" width="540" height="480" style="flex:1;float:right"></canvas>
     </div>
-    <div style="width:100%;align-content: center;justify-content: center">
-        <button id="button" style="font-size: 20px">开始</button>
+    <div style="position:relative;left:46.5%">
+        <a id="button" class="am-btn am-btn-primary am-btn-xl am-radius" >开始</a>
     </div>
-    <div id="font" style="font-size: 75px;color: red"></div>
-    <div id="final" style="font-size: 75px;width:100%;color: green;align-content: center"></div>
+    <!--style="font-size: 75px;color: red"-->
+    <div id="font" style="font-size: 75px;color: red;text-align:center" ></div>
+    <!--style="font-size: 75px;width:100%;color: green;align-content: center"-->
+    <div id="final" style="font-size: 75px;width:100%;color: green;align-content: center" ></div>
 </section>
 <p style="height: 50px"></p>
 <footer class="m-footer">
