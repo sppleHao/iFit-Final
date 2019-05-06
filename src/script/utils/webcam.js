@@ -37,7 +37,11 @@ async function setupCamera(el,deviceId=null,width,height) {
             'Browser API navigator.mediaDevices.getUserMedia not available');
     }
 
+
     const camera = document.getElementById(el);
+
+    console.log(camera)
+
 
     if (deviceId != null) {
         const stream = await navigator.mediaDevices.getUserMedia({

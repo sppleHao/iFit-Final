@@ -1,6 +1,7 @@
 import * as faceapi from "face-api.js";
-import {loadCamera} from "./utils/webcam";
+import {getCameraList, loadCamera} from "./utils/camera";
 import {drawPoint, loadCanvas} from "./utils/canvas";
+import {getFrontUrl} from "./config"
 
 
 const guiState = {
@@ -215,16 +216,21 @@ function interactions(webcam) {
     detectFaceAndDoInteractions()
 }
 
+const url = getFrontUrl()
+
 async function bindPage() {
 
     //load face detection network
-    await faceapi.loadFaceDetectionModel('http://localhost:1234/static/face/ssd_mobilenetv1_model-weights_manifest.json');
-    await faceapi.loadFaceLandmarkModel('http://localhost:1234/static/face/face_landmark_68_model-weights_manifest.json')
+    await faceapi.loadFaceDetectionModel(`${url}/static/face/ssd_mobilenetv1_model-weights_manifest.json`);
+    await faceapi.loadFaceLandmarkModel(`${url}//static/face/face_landmark_68_model-weights_manifest.json`)
 
     //console.log(faceapi.nets)
 
+    //get camera list
+    let cameras = await getCameraList()
+
     //set up webcam
-    const webcam = await loadCamera('webcam',null,guiState.webcam.width,guiState.webcam.height);
+    const webcam = await loadCamera(cameras[0].id,guiState.webcam,'webcam');
 
     //console.log(webcam)
 
@@ -232,4 +238,4 @@ async function bindPage() {
     interactions(webcam)
 }
 
-bindPage();
+bindPage()
