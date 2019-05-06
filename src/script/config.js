@@ -1,23 +1,23 @@
-const dev = {
-    front:{
+const front = {
+    dev:{
         ip:'localhost',
         port:1234,
         type:'http',
     },
-    back:{
-        ip:'localhost',
-        port:3000,
-        type:'http',
-    },
-}
-
-const build = {
-    front:{
+    build:{
         ip:'139.196.138.230',
         port:1234,
         type:'https',
     },
-    back:{
+}
+
+const back = {
+    dev:{
+        ip:'localhost',
+        port:300,
+        type:'http',
+    },
+    build:{
         ip:'139.196.138.230',
         port:3000,
         type:'https',
@@ -26,7 +26,8 @@ const build = {
 
 const GLOBAL = {
     IFitNet_TYPE:'Hourglass',
-    ENVIRONMENT:'dev',
+    ENVIRONMENT_FRONT:'dev',
+    ENVIRONMENT_BACK:'build',
 }
 
 function toUrl(settings) {
@@ -34,20 +35,20 @@ function toUrl(settings) {
 }
 
 function getFrontUrl(){
-    if (GLOBAL.ENVIRONMENT=='build'){
-        return toUrl(build.front)
+    if (GLOBAL.ENVIRONMENT_FRONT=='build'){
+        return toUrl(front.build)
     }
     else {
-        return toUrl(dev.front)
+        return toUrl(front.dev)
     }
 }
 
 function getBackUrl(){
-    if (GLOBAL.ENVIRONMENT=='build'){
-        return toUrl(build.back)
+    if (GLOBAL.ENVIRONMENT_BACK=='build'){
+        return toUrl(back.build)
     }
     else {
-        return toUrl(dev.back);
+        return toUrl(back.dev);
     }
 }
 
@@ -56,11 +57,11 @@ function getIFitNetType(){
 }
 
 function getFrontEnvironment() {
-    if (GLOBAL.ENVIRONMENT=='build'){
-        return [true,build.front.port]
+    if (GLOBAL.ENVIRONMENT_FRONT=='build'){
+        return [true,front.build.port]
     }
     else {
-        return [false,dev.front.port]
+        return [false,front.dev.port]
     }
 }
 
