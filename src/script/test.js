@@ -16,16 +16,42 @@ let DEBUG = 1
 //FPS
 const stats = new Stats()
 
+const label={
+    name:'perfect',
+    width:0,
+    height:0
+}
+
+function randomLabelPositon() {
+    label.width = videoConfig.width*(0.2+Math.random()*0.5)
+    label.height = videoConfig.height*(0.2+Math.random()*0.5)
+}
+
 /**
  * draw  label ：good or perfect
  */
-function drawLabel(label,ctx,width,height) {
+function drawLabel(ctx,alpha) {
+    let x = label.width
+    let y = label.height
 
-    //找名字为label的图片：good/perfect bad不显示
-    let labelImg=document.getElementById(""+label)
-    //随机位置（圈定一定范围）生成图片
+    let imageWidth =200
+    let imageHeight = 200
 
-    ctx.drawImage(labelImg,width*(0.2+Math.random()*0.5),height*(0+Math.random()*0.2),200,200)
+    if (label.name!=''){
+        //找名字为label的图片：good/perfect bad不显示
+        let labelImg=document.getElementById(label.name)
+        //随机位置（圈定一定范围）生成图片
+
+        ctx.drawImage(labelImg,x,y,imageWidth,imageHeight)
+        // var imgData = ctx.getImageData(x , y , imageWidth , imageHeight);
+        // for (var i = 0 , len = imgData.data.length ; i < len ; i += 4 )
+        // {
+        //     // 改变每个像素的透明度
+        //     imgData.data[i + 3] = imgData.data[i + 3] * alpha;
+        // }
+        // // 将获取的图片数据放回去。
+        // ctx.putImageData(imgData , x , y);
+    }
 }
 
 /**
@@ -243,6 +269,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                 vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
                 vctx.restore()
             }
+            drawLabel(cctx,1)
 
             //get compared poss
             poses.forEach((pose)=>{
@@ -370,19 +397,23 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
         if (totalMark>0.45){
             //perfect
             mark.innerText = 'Perfect';
-            drawLabel("perfect",cctx,videoConfig.width,videoConfig.height)
+            label.name = 'perfect'
+            randomLabelPositon();
         }
         else if (totalMark>0.35){
             //good
             mark.innerText =  'Good';
-            drawLabel("good",cctx,videoConfig.width,videoConfig.height)
+            label.name = 'good'
+            randomLabelPositon();
         }
         else if (totalMark>0.2){
             //normal
+            label.name = ''
             mark.innerText =  'Normal';
         }
         else if (totalMark<0.1){
             //bad
+            label.name = ''
             mark.innerText = 'Bad';
         }
 

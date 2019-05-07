@@ -27,7 +27,7 @@ const back = {
 const GLOBAL = {
     IFitNet_TYPE:'Hourglass',
     ENVIRONMENT_FRONT:'dev',
-    ENVIRONMENT_BACK:'dev',
+    ENVIRONMENT_BACK:'build',
 }
 
 function toUrl(settings) {
