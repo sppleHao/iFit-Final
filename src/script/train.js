@@ -202,7 +202,7 @@ function sendPoseJsonToBackUseFormData(poses) {
 const guiState = {
     person:[0, 0, videoConfig.width, videoConfig.height],
     video:{
-        name:'jianshencrop.mp4'
+        name:'out1.mp4'
     },
     confidence:{
         minPoseConfidence:0.15,
