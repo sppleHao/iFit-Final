@@ -106,15 +106,24 @@
         </div>
         <img id="img" src="../J2/views/IMJ2V2/images/mogu.png" style="display: none"/>
 
-        <dib  class="am-center " >
-            <p id="mark" class="am-lg-text-center">得分：0</p>
-        </dib>
+        <div  class="am-center " >
+            <p id="mark" class="am-lg-text-center am-text-xxl" style="color:red">得分：0</p>
+        </div>
         <div class="am-progress am-progress-striped am-progress-sm am-active am-center" style="width: 800px;height: 40px">
             <canvas  class="am-progress-bar am-progress-bar-secondary" id="markbar" style="width: 0%"></canvas>
         </div>
         <!--style="background-color:rgb(214, 214, 214) width="800" height="40" -->
     </div>
-
+    <div class="am-modal am-modal-no-btn" tabindex="-1" id="your-modal">
+        <div class="am-modal-dialog">
+            <div class="am-modal-hd">Modal 标题
+                <a href="javascript: void(0)" class="am-close am-close-spin" data-am-modal-close>&times;</a>
+            </div>
+            <div class="am-modal-bd">
+                Modal 内容。
+            </div>
+        </div>
+    </div>
 </section>
 
 <footer class="m-footer">

@@ -87,10 +87,16 @@ function drawMushroom(ctx){
 }
 
 /**
- * 满分弹出框
+ * 满分弹出框 todo 还有问题
  */
 function successBox(){
-
+    let mark=document.getElementById("mark")
+    if(guiState.mark==100){
+        mark.onclick=function () {
+            alert("Congratulations!")
+            $('#your-modal').modal();
+        }
+    }
 }
 
 /**
@@ -169,7 +175,7 @@ function interactions(webcam) {
                 if (isFaceTouchMushroom(face)){
                     //4.1 change mark
                     //修改得分
-                    guiState.mark+=8
+                    guiState.mark+=5
                     console.log(guiState.mark.toString())
                     document.getElementById("mark").innerHTML="得分："+guiState.mark;
                     //4.2 remove mushroom
@@ -209,8 +215,10 @@ function interactions(webcam) {
                 drawMushroom(ctx)
             }
         }
+        successBox()
         //播放下一帧
         requestAnimationFrame(detectFaceAndDoInteractions);
+
     }
 
     detectFaceAndDoInteractions()

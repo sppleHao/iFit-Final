@@ -17,6 +17,18 @@ let DEBUG = 1
 const stats = new Stats()
 
 /**
+ * draw  label ：good or perfect
+ */
+function drawLabel(label,ctx,width,height) {
+
+    //找名字为label的图片：good/perfect bad不显示
+    let labelImg=document.getElementById(""+label)
+    //随机位置（圈定一定范围）生成图片
+
+    ctx.drawImage(labelImg,width*(0.2+Math.random()*0.5),height*(0+Math.random()*0.2),200,200)
+}
+
+/**
  *  get compared pose from poseFIle
  */
 function getComparedPose(pose,video,poseFile,startIndex,fps,deactivateMask) {
@@ -118,7 +130,7 @@ function setupFPS() {
 let totalMarks = [];
 let partMarks = [];
 
-function computeFinalMark(totalMarks) {
+function computeFinalMark() {
     let mark = 0;
     let length = totalMarks.length;
     if (length>0){
@@ -358,10 +370,12 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
         if (totalMark>0.45){
             //perfect
             mark.innerText = 'Perfect';
+            drawLabel("perfect",cctx,videoConfig.width,videoConfig.height)
         }
         else if (totalMark>0.35){
             //good
             mark.innerText =  'Good';
+            drawLabel("good",cctx,videoConfig.width,videoConfig.height)
         }
         else if (totalMark>0.2){
             //normal
