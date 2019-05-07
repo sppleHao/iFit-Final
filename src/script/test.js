@@ -396,7 +396,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
 const guiState = {
     video:{
-        name:'dancecrop.mp4'
+        name:'out2.mp4'
     },
     confidence:{
         lambda:0.7,

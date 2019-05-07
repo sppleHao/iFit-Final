@@ -311,7 +311,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
 const guiState = {
     video:{
-        name:'shenduncrop.mp4'
+        name:'out4.mp4'
     },
     confidence:{
         minPoseConfidence:0.15,
