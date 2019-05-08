@@ -166,6 +166,8 @@ function computeFinalMark() {
 
     let finalMark = Math.floor(mark/0.6 * 100);
 
+    // let final
+
     totalMarks = []
 
     return finalMark;

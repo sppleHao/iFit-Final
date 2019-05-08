@@ -157,7 +157,7 @@ function interactions(webcam) {
             })
         }
 
-        guiState.mushroom=createMushroom(positionX,positionY,50,50)
+        guiState.mushroom=createMushroom(positionX,positionY,100,100)
         drawMushroom(ctx)
         //todo 得分显示
         //draw mark line
@@ -194,7 +194,7 @@ function interactions(webcam) {
                     // }else if(positionX<guiState.middlePoint.x){
                     //     positionX=guiState.middlePoint+guiState.canvas.width*0.3
                     // }
-                    guiState.mushroom=createMushroom(positionX,positionY,50,50)
+                    guiState.mushroom=createMushroom(positionX,positionY,100,100)
                     drawMushroom(ctx)
                 }
                 //4.else
@@ -202,7 +202,7 @@ function interactions(webcam) {
                 else {
                     //keep mushroom
                     //原有位置重绘蘑菇
-                    guiState.mushroom=createMushroom(positionX,positionY,50,50)
+                    guiState.mushroom=createMushroom(positionX,positionY,100,100)
                     drawMushroom(ctx)
                 }
 
@@ -211,7 +211,7 @@ function interactions(webcam) {
             else{
                 //new a mushroom
                 //设置并绘制蘑菇
-                guiState.mushroom=createMushroom(positionX,positionY,50,50)
+                guiState.mushroom=createMushroom(positionX,positionY,100,100)
                 drawMushroom(ctx)
             }
         }
