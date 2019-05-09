@@ -20,7 +20,7 @@
 * src/script:
     * net/: iFit深度网络
         * iFitNet: iFitNet姿态估计网络
-        * 3D pose: 3D模型网络
+        * faceDetection: 脸部检测网络
     * utils/: 工具文件夹
     * config.js 配置文件
     * train.js 视频预训练
