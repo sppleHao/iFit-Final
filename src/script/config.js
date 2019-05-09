@@ -27,7 +27,7 @@ const back = {
 const GLOBAL = {
     IFitNet_TYPE:'Hourglass',
     ENVIRONMENT_FRONT:'dev',  //dev为本地，build为服务器
-    ENVIRONMENT_BACK:'build',
+    ENVIRONMENT_BACK:'dev',
 }
 
 function toUrl(settings) {

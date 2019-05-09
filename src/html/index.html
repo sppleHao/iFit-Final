@@ -144,9 +144,9 @@
             <!--<video class="am-u-sm-8" autoplay="autoplay" width="300" height="700">-->
                 <!--<source src="../J2/video/model.mp4" type="video/mp4" >-->
             <!--</video>-->
-            <img class="am-u-sm-8" src="../J2/video/model.gif" width="180" height="900">
+            <img class="am-u-sm-8" id="xiaoai" src="../J2/video/model.gif" width="180" height="900">
             <section class="m-case-list am-u-sm-4">
-
+            <div style="min-height: 80px"></div>
             <ul class="am-container  am-thumbnails am-avg-sm-1 am-avg-md-1 am-avg-lg-1">
                 <li data-am-scrollspy="{animation:'slide-bottom', delay: 196}" >
                     <!--width: 380px;height:250px-->
@@ -376,6 +376,35 @@ var imj2 = new imj2();
 //end返回顶部
 </script>
 
+<!--<script type="text/javascript">-->
+    <!--var image = document.getElementById("xiaoai"); //获取id为model的图片-->
+    <!--loadImg(image);-->
+    <!--window.onscroll = function() { //滚动条滚动触发-->
+        <!--loadImg(image);-->
+    <!--};-->
+    <!--//getBoundingClientRect 是图片懒加载的核心-->
+    <!--function loadImg(image) {-->
+        <!--if(image.getBoundingClientRect().top < document.documentElement.clientHeight && !image.isLoad) {-->
+            <!--image.isLoad = true; //图片显示标志位-->
+            <!--//arr[i].style.cssText = "opacity: 0;";-->
+            <!--(function() {-->
+                <!--setTimeout(function() {-->
+                    <!--aftLoadImg(image);-->
+                    <!--image.style.cssText = "transition: 1s; opacity: 1;" //相当于fadein-->
+                <!--}, 100)-->
+            <!--})();-->
+        <!--}-->
+    <!--}-->
+
+    <!--function aftLoadImg(obj) {-->
+        <!--var url = 'http://localhost:1234/static/images/model.gif'-->
+        <!--var oImg = new Image();-->
+        <!--oImg.onload = function() {-->
+            <!--obj.src = oImg.src; //下载完成后将该图片赋给目标obj目标对象-->
+        <!--}-->
+        <!--oImg.src = url; //oImg对象先下载该图像-->
+    <!--}-->
+<!--</script>-->
 
 </body>
 </html>

@@ -127,7 +127,7 @@ function setupFPS() {
  * @param camera Video Element
  * @param model
  */
-function detectPoseInRealTime(net,video,camera,poseFile) {
+function detectPoseInRealTime(net,model,camera,poseFile) {
     let font = document.getElementById('font')
 
     //camera canvas
@@ -140,11 +140,9 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
     //config
     let startIndex = 0
-    let trainingFramePerSecond  = parseInt(poseFile.length) /parseInt(video.duration)
 
     if (DEBUG){
         console.log('videoFPS')
-        console.log(trainingFramePerSecond)
     }
 
     //loop
@@ -155,7 +153,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
         }
 
         if (guiState.changeVideoName){
-            video = await loadVideo(guiState.changeVideoName,videoConfig,'trainVideo',true)
+            model = await loadVideo(guiState.changeVideoName,videoConfig,'trainVideo',true)
             poseFile = await loadPoseFile()
             guiState.changeVideoName = null
             videoConfig.videoState = 'ended'
@@ -213,34 +211,33 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                     cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
                     cctx.restore()
                 }
-
-
                 vctx.save()
                 // vctx.scale(-1, 1)
                 // vctx.translate(-videoConfig.width, 0)
-                vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
+                vctx.drawImage(model,0,0,videoConfig.width,videoConfig.height)
                 vctx.restore()
             }
 
             //get compared poss
             poses.forEach((pose)=>{
                 //get compare poses (0-1seconds)
+
                 //todo
-                let [newIndex , comparePoses] =getComparedPose(pose,video,poseFile,startIndex,trainingFramePerSecond,deactivateMask)
+                let [newIndex , comparePoses] =getComparedPose(pose,model,poseFile,startIndex,deactivateMask)
                 startIndex = newIndex
 
                 if (guiState.output.showPoints){
-                    drawKeypointsWithMask(poseFile[startIndex].keypoints,cctx,poseFile[startIndex].mask)
-                    // drawKeypointsWithMask(pose.keypoints,cctx,pose.mask)
+                    drawKeypointsWithMask(pose.keypoints,cctx,pose.mask)
+                    // drawKeypointsWithMask(poseFile[startIndex].keypoints,cctx,poseFile[startIndex].mask)
                 }
                 if (guiState.output.showSkeleton){
-                    drawSkeletonWithMask(poseFile[startIndex].keypoints,cctx,poseFile[startIndex].mask)
-                    // drawSkeletonWithMask(pose.keypoints,cctx,pose.mask)
+                    drawSkeletonWithMask(pose.keypoints,cctx,pose.mask)
+                    // drawSkeletonWithMask(poseFile[startIndex].keypoints,cctx,poseFile[startIndex].mask)
                 }
 
                 if (comparePoses.length==0){
-                    font.innerText='未检测到所有关键点';
-                    video.pause();
+                    // font.innerText='未检测到所有关键点';
+                    // model.pause();
                 }
                 else {
                     let [isPass ,noPassNum , lowConfidenceJointMask,overConfidenceJointsMask] = comparePoseWithVideo(pose,comparePoses,guiState.confidence.compareThreshold)
@@ -256,38 +253,38 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                     }
 
                     if (noPassNum==-1){
-                        font.innerText = '无有效关键点'
-                        video.pause()
+                        // font.innerText = '无有效关键点'
+                        // model.pause()
                     }
                     else{
                         if (noPassNum==0){
-                            font.innerText = '通过'
+                            // font.innerText = '通过'
                             if (isPass&&videoConfig.videoState=='pause'){
-                                video.play()
+                                // video.play()
                             }
 
                             if (guiState.output.showPoints) {
-                                // drawKeypointsWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',4)
+                                // drawKeypointsWithMask(comparePoses[0].keypoints,cctx,overConfidenceJointsMask,'green',4)
                             }
 
                             if (guiState.output.showSkeleton){
-                                // drawSkeletonWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',3)
+                                // drawSkeletonWithMask(comparePoses[0].keypoints,cctx,overConfidenceJointsMask,'green',3)
                             }
                         }
                         else {
-                            font.innerText = '未通过'+ noPassNum.toString()
+                            // font.innerText = '未通过'+ noPassNum.toString()
                             if(!isPass&&videoConfig.videoState=='play') {
-                                video.pause()
+                                // video.pause()
                             }
 
                             if (guiState.output.showPoints) {
-                                // drawKeypointsWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',4)
-                                // drawKeypointsWithMask(pose.keypoints,cctx,lowConfidenceJointMask,'red',5)
+                                // drawKeypointsWithMask(comparePoses[0].keypoints,cctx,overConfidenceJointsMask,'green',4)
+                                // drawKeypointsWithMask(comparePoses[0].keypoints,cctx,lowConfidenceJointMask,'red',5)
                             }
 
                             if (guiState.output.showSkeleton){
-                                // drawSkeletonWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',3)
-                                // drawSkeletonWithMask(pose.keypoints,cctx,lowConfidenceJointMask,'red',4)
+                                // drawSkeletonWithMask(comparePoses[0].keypoints,cctx,overConfidenceJointsMask,'green',3)
+                                // drawSkeletonWithMask(comparePoses[0].keypoints,cctx,lowConfidenceJointMask,'red',4)
                             }
                         }
                     }
@@ -477,22 +474,22 @@ async function runDemo(){
     //load videoList
     let videoList = await loadVideoList(videoConfig)
 
-    //load learning video
-    let video = await loadVideo(guiState.video.name,videoConfig,'model')
+    //load 3d model
+    let model = await loadVideo(guiState.video.name,videoConfig,'model')
 
-    //load poseFile from Backend
+    //load pose(skeleton) file from Backend
     let poseFile = await loadPoseFile()
 
-    // // init button
-    // let button = document.getElementById('button');
-    // button.onclick = function () {
-    //     if(videoConfig.videoState=='pause'||videoConfig.videoState=='ended'){
-    //         video.play();
-    //     }
-    //     else{
-    //         video.pause();
-    //     }
-    // };
+    // init button
+    let button = document.getElementById('button');
+    button.onclick = function () {
+        if(videoConfig.videoState=='pause'||videoConfig.videoState=='ended'){
+            model.play();
+        }
+        else{
+            model.pause();
+        }
+    };
 
     if (cameras.length>0){
         //load camera
@@ -502,7 +499,7 @@ async function runDemo(){
         setupGui(videoList,cameras)
         setupFPS()
 
-        detectPoseInRealTime(net,video,camera,poseFile)
+        detectPoseInRealTime(net,model,camera,poseFile)
     }
 }
 

@@ -101,19 +101,28 @@
 <section class="am-container m-service-page" >
     <div class="m-service-container am-avg-sm-2" >
         <!--横向排列两个视频-->
-        <video  width="540" height="480" controls="controls" style="flex:1;float:left">
-            <source src="../J2/video/test.mp4" type="video/mp4">
+        <video id="model"  width="540" height="480" controls="controls" style="flex:1;float:left;display: none">
         </video>
-        <video  width="540" height="480" controls="controls" style="flex:1;float:right">
-            <source src="../J2/video/test.mp4" type="video/mp4">
+        <video id="camera" width="540" height="480" controls="controls" style="flex:1;float:right;display: none">
         </video>
+        <canvas id="coutput" width="540" height="480" style="flex:1;float:left"></canvas>
+        <canvas id="voutput" width="540" height="480" style="flex:1;float:right"></canvas>
     </div>
+    <!--<div class="am-g">-->
+        <!--&lt;!&ndash;style="position:relative;left:45%"&ndash;&gt;-->
+        <!--<div class="am-u-sm-4 am-u-md-4 am-u-lg-4" style=" min-height:1px;"></div>-->
+        <!--<a id="button" class="am-btn am-btn-primary am-btn-xl am-radius am-u-sm-4 am-u-md-4 am-u-lg-4">开始</a>-->
+        <!--<div class="am-u-sm-4 am-u-md-4 am-u-lg-4" style=" min-height:1px;"></div>-->
+    <!--</div>-->
     <div class="am-g">
         <!--style="position:relative;left:45%"-->
         <div class="am-u-sm-4 am-u-md-4 am-u-lg-4" style=" min-height:1px;"></div>
-        <a id="button" class="am-btn am-btn-primary am-btn-xl am-radius am-u-sm-4 am-u-md-4 am-u-lg-4">开始</a>
+        <div id ="button" class="am-u-sm-4 am-u-md-4 am-u-lg-4" style="background-color: #0e90d2;">
+            <p style="color: white;text-align: center;font-size: 20px">开始</p>
+        </div>
         <div class="am-u-sm-4 am-u-md-4 am-u-lg-4" style=" min-height:1px;"></div>
     </div>
+
     <!--style="font-size: 75px;color: red"-->
     <div id="font" style="font-size: 75px;color: red;text-align:center" ></div>
     <!--style="font-size: 75px;width:100%;color: green;align-content: center"-->
@@ -233,7 +242,7 @@
     var imj2 = new imj2();
     //end返回顶部
 </script>
-
+<script src="../script/model.js"></script>
 
 </body>
 </html>
