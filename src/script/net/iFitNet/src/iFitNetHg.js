@@ -56,46 +56,50 @@ export class IFitNetHourglass {
   }
 
   gaussKernel(truncate,sigma){
-    let radius = Math.floor(truncate * sigma+0.5)
-    let sideLength = radius*2 +1
-    let result = []
+    let kernel = tf.tidy(()=>{
+        let radius = Math.floor(truncate * sigma+0.5)
+        let sideLength = radius*2 +1
 
-    for (let i =0 ; i<sideLength;i++){
-      for (let j =0 ; j<sideLength;j++) {
-        result.push(this.gauss(i-radius,j-radius,sigma))
-      }
-    }
+        let result = []
+        for (let i =0 ; i<sideLength;i++){
+            for (let j =0 ; j<sideLength;j++) {
+                result.push(this.gauss(i-radius,j-radius,sigma))
+            }
+        }
 
-    result = tf.tensor2d(result,[sideLength,sideLength],'float32')
+        //through 2d tensor filter
+        let kernel = tf.tensor2d(result,[sideLength,sideLength],'float32')
 
-    let all = result.sum()
+        let all = kernel.sum()
+        kernel = kernel.div(all)
 
-    result = result.div(all)
+        return kernel
+    })
 
-    return result
+    return kernel
   }
 
   /**
    *
    * @param heatmap (shape:[1,outChannels,outChannels,numClass])
-   * @param kpConfidenceThreshold
    * @param scale
    * @returns {*[]}
    */
 
-  async postProcessHeatap(heatmap,kpConfidenceThreshold,scale){
-    let out = tf.tidy(()=>{
+  async processHeatmap(heatmap,scale){
+    let out =tf.tidy(()=>{
+      const shape = heatmap.shape
+      const length = heatmap.shape.length
+      const lastShape = heatmap.shape[length-1]
+
       const newScale = scale.mul(tf.scalar(4))
       const gaussKernel = this.gaussKernel(4.0,0.5)
       const kernelLength = gaussKernel.shape[0]
       const kernel = tf.reshape(gaussKernel,[kernelLength,kernelLength,1,1])
-      const shape = heatmap.shape
-      const length = heatmap.shape.length
-      const lastShape = heatmap.shape[length-1]
       const size  = tf.scalar(shape[1]).toInt()
-
       let maps = tf.split(heatmap,lastShape,-1)
 
+      //index 0 joint
       let map = maps[0]
       //Convolve Gauss
       map  = tf.conv2d(map,kernel,[1,1],'same')
@@ -109,6 +113,7 @@ export class IFitNetHourglass {
         tf.stack([arg.mod(size).toInt() , arg.floorDiv(size).toInt()],-1).mul(newScale).print()
       }
 
+      //1 - K-1 joints
       for (let i=1;i<lastShape;i++){
         let map = maps[i]
         //Convolve Gauss
@@ -139,48 +144,55 @@ export class IFitNetHourglass {
    * @param mean
    * @returns {TensorContainer}
    */
-  normalize(imageData , mean){
+  normalize(imageData, mean){
       return tf.tidy(()=>{
         let i = imageData.toFloat()
-
         const scale = tf.scalar(255)
         i = i.div(scale)
-
         i = i.sub(mean)
-
         return i
       })
   }
 
+    /**
+     * estimate pose
+     * @param imageElement
+     * @param flipHorizontal
+     * @returns {Promise<{score: *, keypoints: Array}>}
+     */
   async estimateSinglePose(imageElement, flipHorizontal){
-    const [inputTensor,scale] =tf.tidy(()=>{
-        const mean = tf.tensor1d([0.4404, 0.4440, 0.4327])
-        const input = tf.fromPixels(imageElement)
-        const [imageWidth,imageHeight]  = input.shape.slice(0,2)
-        const scale = tf.tensor1d([imageHeight * 1.0 /this.inres[1],imageWidth*1.0 / this.inres[0]])
 
-        let inputTensor = this.normalize(input,mean)
-        if (flipHorizontal){
-            inputTensor = inputTensor.reverse(1)
-        }
-        inputTensor = inputTensor.expandDims(0)
-        inputTensor = tf.image.resizeBilinear(inputTensor,this.inres)
+    //initialize input tensor and scale of origin input
+     const [inputTensor,scale] = tf.tidy(()=>{
+         const mean = tf.tensor1d([0.4404, 0.4440, 0.4327])
+         const input = tf.fromPixels(imageElement)
+         const [imageWidth,imageHeight]  = input.shape.slice(0,2)
+         const scale = tf.tensor1d([imageHeight * 1.0 /this.inres[1],imageWidth*1.0 / this.inres[0]])
 
-        return [inputTensor,scale]
-    })
+         let inputTensor = this.normalize(input,mean)
+         if (flipHorizontal){
+             inputTensor = inputTensor.reverse(1)
+         }
+         inputTensor = inputTensor.expandDims(0)
+         inputTensor = tf.image.resizeBilinear(inputTensor,this.inres)
 
+          return [inputTensor,scale]
+      })
 
       const [h1,h2] = await this.model.predict(inputTensor)
+      inputTensor.dispose()
 
-      const [j,s] =await this.postProcessHeatap(h2,this.kpConfidenceThreshold,scale)
 
-      const meanScore = await s.mean().data()
+      const [jointsTensor,scoresTensor] =await this.processHeatmap(h2,scale)
 
-      const joints = await j.data()
-      const scores = await s.data()
+      const meanScore = await scoresTensor.mean().data()
+      const joints = await jointsTensor.data()
+      const scores = await scoresTensor.data()
 
-      j.dispose()
-      s.dispose()
+      h1.dispose()
+      scale.dispose()
+      jointsTensor.dispose()
+      scoresTensor.dispose()
 
       let keypoints = []
 
