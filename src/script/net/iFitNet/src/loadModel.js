@@ -16,7 +16,7 @@ export async function load(){
             const model = await tf.loadModel(hgUrl)
             return new IFitNetHourglass(model)
         }
-        else {
+        else if(modelType=='HRNet'){
             console.log('iFitNet:load hr model ...')
             const model = await tf.loadModel(hrUrl)
             return new IFitNetHR(model)

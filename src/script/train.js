@@ -7,6 +7,7 @@ import {andMask, getConfidenceMask, getDeactivateMask} from "./utils/confidence"
 import {loadVideoList,loadVideo} from "./utils/video";
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import {getFrontUrl} from "./config";
+import * as tf from '@tensorflow/tfjs'
 
 //DEBUG settings
 let DEBUG = 1
@@ -138,6 +139,8 @@ function detectPoseInRealTime(net,ssd,video) {
     stats.end()
 
     // setInterval(detectPerson,400)
+
+    setInterval(()=>{console.log(tf.memory())},1000)
 
     poseDetectionFrame()
 }

@@ -38,6 +38,7 @@ export class IFitNetHourglass {
     this.outres = [64,64]
     this.kpConfidenceThreshold = 1e-6
     this.keys = JOINT_NAMES
+    this.guassFilter = this.gaussKernel(4,0.5)
   }
 
   generateTiny(){
@@ -47,12 +48,13 @@ export class IFitNetHourglass {
     this.outres = [48,48]
     this.kpConfidenceThreshold = 1e-6
     this.keys = JOINT_NAMES
+    this.gaussFilter = this.gaussKernel(4,0.5)
   }
 
   //gaussFilter
   gauss(x,y,sigma){
-   let z = 2 * Math.PI * sigma *sigma
-    return 1.0 / z * Math.exp(-(x * x + y * y) / 2 / (sigma * sigma))
+      let z = 2 * Math.PI * sigma *sigma
+      return 1.0 / z * Math.exp(-(x * x + y * y) / 2 / (sigma * sigma))
   }
 
   gaussKernel(truncate,sigma){
@@ -93,7 +95,7 @@ export class IFitNetHourglass {
       const lastShape = heatmap.shape[length-1]
 
       const newScale = scale.mul(tf.scalar(4))
-      const gaussKernel = this.gaussKernel(4.0,0.5)
+      const gaussKernel = this.gaussFilter
       const kernelLength = gaussKernel.shape[0]
       const kernel = tf.reshape(gaussKernel,[kernelLength,kernelLength,1,1])
       const size  = tf.scalar(shape[1]).toInt()
@@ -163,7 +165,7 @@ export class IFitNetHourglass {
   async estimateSinglePose(imageElement, flipHorizontal){
 
     //initialize input tensor and scale of origin input
-     const [inputTensor,scale] = tf.tidy(()=>{
+     const [inputTensor,scale,h2] = tf.tidy(()=>{
          const mean = tf.tensor1d([0.4404, 0.4440, 0.4327])
          const input = tf.fromPixels(imageElement)
          const [imageWidth,imageHeight]  = input.shape.slice(0,2)
@@ -176,23 +178,25 @@ export class IFitNetHourglass {
          inputTensor = inputTensor.expandDims(0)
          inputTensor = tf.image.resizeBilinear(inputTensor,this.inres)
 
-          return [inputTensor,scale]
-      })
+         const [h1,h2] = this.model.predict(inputTensor)
 
-      const [h1,h2] = await this.model.predict(inputTensor)
-      inputTensor.dispose()
+          return [inputTensor,scale,h2]
+      })
 
 
       const [jointsTensor,scoresTensor] =await this.processHeatmap(h2,scale)
+      const mean = scoresTensor.mean()
 
-      const meanScore = await scoresTensor.mean().data()
+      const meanScore = await mean.data()
       const joints = await jointsTensor.data()
       const scores = await scoresTensor.data()
 
-      h1.dispose()
-      scale.dispose()
-      jointsTensor.dispose()
-      scoresTensor.dispose()
+      tf.dispose(inputTensor)
+      tf.dispose(scale)
+      tf.dispose(h2)
+      tf.dispose(mean)
+      tf.dispose(jointsTensor)
+      tf.dispose(scoresTensor)
 
       let keypoints = []
 
@@ -204,7 +208,6 @@ export class IFitNetHourglass {
                 y:joints[2*i+1]
               },
               score:scores[i],
-              active:true,
           }
           keypoints.push(keyPoint)
       }
