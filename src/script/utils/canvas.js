@@ -1,9 +1,11 @@
+import {getLinks} from "./config";
+
 const color = 'aqua';
 const boundingBoxColor ='red'
 
 let DEBUG = 0
 
-const links = [[0,1],[1,2],[2,6],[3,6],[4,3],[5,4],[10,11], [11,12],[12,8],[13,8],[14,13],[15,14],[7,8],[8,9],[8,2],[8,3]]
+const links = getLinks()
 
 function toTuple({y, x}) {
     return [y, x];

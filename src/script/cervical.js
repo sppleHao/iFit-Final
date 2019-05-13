@@ -1,7 +1,7 @@
 import * as faceapi from "face-api.js";
 import {getCameraList, loadCamera} from "./utils/camera";
 import {drawPoint, loadCanvas} from "./utils/canvas";
-import {getFrontUrl} from "./config"
+import {getFrontUrl} from "./utils/config"
 
 
 const guiState = {

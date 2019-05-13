@@ -1,6 +1,6 @@
 import {IFitNetHourglass} from "./iFitNetHg";
 import {IFitNetHR} from "./iFitNetHR";
-import {getFrontUrl,getIFitNetType} from "../../../config";
+import {getFrontUrl,getIFitNetType} from "../../../utils/config";
 import * as tf from '@tensorflow/tfjs'
 
 const url = getFrontUrl();

@@ -7,7 +7,7 @@ import {drawKeypointsWithMask, drawSkeletonWithMask, loadCanvas} from "./utils/c
 import {andMask, getConfidenceMask, getDeactivateMask, isBelongMask} from "./utils/confidence";
 import {loadVideoList,loadVideo} from "./utils/video";
 import {getCameraList,loadCamera} from "./utils/camera";
-import {getFrontUrl} from "./config";
+import {getFrontUrl} from "./utils/config";
 
 //DEBUG settings
 let DEBUG = 1

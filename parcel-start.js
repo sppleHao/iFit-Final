@@ -4,7 +4,7 @@ const express = require('express')
 const fs = require('fs')
 const http = require('http')
 const https = require('https')
-const config = require('./src/script/config')
+const config = require('./src/script/utils/config')
 var app = express()
 var credentials = null
 

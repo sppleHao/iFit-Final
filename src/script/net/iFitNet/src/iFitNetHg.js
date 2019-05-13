@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs'
 import * as $ from 'jquery'
-import {getFrontUrl} from "../../../config";
+import {getFrontUrl} from "../../../utils/config";
 
 const DEBUG = 0
 const JOINT_NAMES = [

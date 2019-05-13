@@ -2,15 +2,14 @@ import Stats from 'stats.js'
 import dat from 'dat.gui'
 import $ from 'jquery'
 import * as loadModel from "./net/iFitNet/src/loadModel"
-import {loadCanvas, drawKeypointsWithMask, drawSkeletonWithMask} from "./utils/canvas";
+import {loadCanvas, drawKeypointsWithMask, drawSkeletonWithMask,drawPoint} from "./utils/canvas";
 import {andMask, getConfidenceMask, getDeactivateMask} from "./utils/confidence";
 import {loadVideoList,loadVideo} from "./utils/video";
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import {getFrontUrl} from "./utils/config";
-import * as tf from '@tensorflow/tfjs'
 
 //DEBUG settings
-let DEBUG = 1
+let DEBUG = 0
 //FPS
 const stats = new Stats()
 
@@ -29,31 +28,55 @@ let allPose = []
  * @param camera Video Element
  * @param model
  */
-function detectPoseInRealTime(net,ssd,video) {
+function detectPoseInRealTime(iFitNet,ssd,video) {
 
     const canvas = loadCanvas('output',videoConfig.width,videoConfig.height)
     const ctx = canvas.getContext('2d');
 
-    const bcanvas = loadCanvas('box',videoConfig.width,videoConfig.height)
-    const bctx = bcanvas.getContext('2d');
+    const originCanvas = loadCanvas('origin',videoConfig.width,videoConfig.height)
+    const octx = originCanvas.getContext('2d');
 
-    async function detectPerson() {
-        console.time('detect')
-        let objs =await ssd.detect(canvas)
-        objs.forEach(obj=>{
-            if (obj.class=='person'){
-                let [x,y,w,h] = obj.bbox
-                let centerX = x+w/2;
-                let centerY = y+h/2;
-                let max = w>h ? w:h;
-                x = centerX - max/2;
-                y = centerY - max/2;
-                // ctx.strokeRect(x,y,max,max)
-                guiState.person = [x,y,max,max]
-                // guiState.person = obj.bbox
+    let detection = setInterval(detectPersons,guiState.personDetection.interval)
+
+    async function detectPersons() {
+        // console.time('detect')
+        if (guiState.personDetection.open){
+            let objs =await ssd.detect(originCanvas)
+
+            let maxBoxArea = 0;
+            let maxBox = []
+
+            for(let i =0;i<objs.length;i++){
+                const obj = objs[i];
+                if (obj.class=='person'){
+
+                        let [x,y,w,h] = obj.bbox.map(p=>{
+                            return Math.floor(p)
+                        })
+                        let centerX = x + w/2;
+                        let centerY = y + h/2;
+                        let maxSide = w>h ? w:h;
+                        let boxMinX = centerX - maxSide/2 > 0 ? centerX - maxSide/2 : 0 ;
+                        let boxMinY = centerY - maxSide/2 > 0 ? centerY - maxSide/2 : 0 ;
+                        let boxMaxX = centerX + maxSide/2 < videoConfig.width ? centerX + maxSide/2 : videoConfig.width;
+                        let boxMaxY = centerY + maxSide/2 < videoConfig.height ? centerY + maxSide/2 : videoConfig.height;
+                        let boxW = boxMaxX - boxMinX
+                        let boxH = boxMaxY - boxMinY
+                        let boxArea = boxW * boxH
+                        if (boxArea>maxBoxArea){
+                            maxBoxArea = boxArea
+                            maxBox = [boxMinX,boxMinY,boxW,boxH]
+                        }
+
+                }
+
+                if (i==objs.length-1){
+                    guiState.person = maxBox
+                }
             }
-        })
-        console.timeEnd('detect')
+        }
+
+        // console.timeEnd('detect')
     }
 
     async function poseDetectionFrame() {
@@ -65,37 +88,77 @@ function detectPoseInRealTime(net,ssd,video) {
             videoConfig.videoState = 'ended'
         }
 
+        if (guiState.changePersonDetectionInterval){
+            clearInterval(detection);
+            console.log(detection)
+            detection = setInterval(detectPersons,guiState.changePersonDetectionInterval)
+            guiState.changePersonDetectionInterval = null
+        }
+
         stats.begin()
 
         let poses =[]
         let videoTime = video.currentTime
-        let pose = await net.estimateSinglePose(video,guiState.output.flipHorizontal)
-        if (DEBUG){
-            console.log('Estimate...')
-            console.log(pose)
+
+        if (guiState.personDetection.open){
+            octx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+            if (guiState.output.showVideo){
+                octx.save();
+                if (guiState.output.showVideo){
+                    octx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
+                }
+                octx.restore();
+            }
         }
 
-        //filter deactivate keypoints
-        // pose.keypoints = filterDeactivateKeypoints(pose.keypoints,guiState.confidence.minPoseConfidence,guiState.deactivateArray)
+        console.log("box",guiState.person)
+        //draw image in canvas
 
-        //get mask
-        let mask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
-        let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
-        mask = andMask(mask,deactivateMask);
-        pose.mask = mask
+        if (guiState.person.length>0&&guiState.personDetection.open){
+            let box = guiState.person
+            let imData = octx.getImageData(...box)
+            let pose = await iFitNet.estimateSinglePose(imData,guiState.output.flipHorizontal)
+            pose.keypoints.forEach(keypoint=>{
+                keypoint.position.x += box[0];
+                keypoint.position.y += box[1];
+            })
 
-        if (DEBUG){
-            console.log('mask:')
-            console.log(pose.mask)
+            //get mask
+            let mask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
+            let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
+            mask = andMask(mask,deactivateMask);
+            pose.mask = mask
+            pose.time = videoTime
+            poses.push(pose)
+
+            if (DEBUG){
+                console.log('Estimate...')
+                console.log(pose)
+                console.log('mask:')
+                console.log(pose.mask)
+            }
+        }
+        else {
+            let pose = await iFitNet.estimateSinglePose(video,guiState.output.flipHorizontal)
+
+            //get mask
+            let mask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
+            let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
+            mask = andMask(mask,deactivateMask);
+            pose.mask = mask
+            pose.time = videoTime
+            poses.push(pose)
+
+            if (DEBUG){
+                console.log('Estimate...')
+                console.log(pose)
+                console.log('mask:')
+                console.log(pose.mask)
+            }
         }
 
-        pose.time = videoTime
-        poses.push(pose)
 
-        if (videoConfig.videoState=='play'){
-            allPose.push(pose)
-        }
-
+        //draw image in canvas
         ctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
         if (guiState.output.showVideo){
             ctx.save();
@@ -105,16 +168,6 @@ function detectPoseInRealTime(net,ssd,video) {
             ctx.restore();
         }
 
-        // {
-        //     let imData = ctx.getImageData(...guiState.person)
-        //     let pose = await net.estimateSinglePose(imData,guiState.output.flipHorizontal)
-        //     bctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
-        //     bctx.putImageData(imData,0,0)
-        //     let mask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
-        //     drawKeypointsWithMask(pose.keypoints,bctx,mask)
-        //     drawSkeletonWithMask(pose.keypoints,bctx,mask)
-        // }
-
         //draw keypoints
         poses.forEach((pose)=>{
             if (guiState.output.showPoints){
@@ -122,6 +175,14 @@ function detectPoseInRealTime(net,ssd,video) {
             }
             if (guiState.output.showSkeleton){
                 drawSkeletonWithMask(pose.keypoints,ctx,pose.mask)
+            }
+            if (guiState.personDetection.open){
+                if (guiState.person.length>0){
+                    ctx.strokeRect(...guiState.person)
+                }
+            }
+            if (videoConfig.videoState=='play'){
+                allPose.push(pose)
             }
         })
 
@@ -137,10 +198,6 @@ function detectPoseInRealTime(net,ssd,video) {
 
 
     stats.end()
-
-    // setInterval(detectPerson,400)
-
-    setInterval(()=>{console.log(tf.memory())},1000)
 
     poseDetectionFrame()
 }
@@ -203,7 +260,7 @@ function sendPoseJsonToBackUseFormData(poses) {
 }
 
 const guiState = {
-    person:[0, 0, videoConfig.width, videoConfig.height],
+    person:[],
     video:{
         name:'out1.mp4'
     },
@@ -217,8 +274,8 @@ const guiState = {
         leftHip:true,
         leftKnee:true,
         leftAnkle:true,
-        Pelvis:false,
-        thorax:false,
+        Pelvis:true,
+        thorax:true,
         upperNeck:true,
         headTop:true,
         rightWrist:true,
@@ -233,6 +290,10 @@ const guiState = {
         showSkeleton:true,
         showPoints:true,
         flipHorizontal:false,
+    },
+    personDetection:{
+        open:false,
+        interval:300,
     },
     deactivateArray:[]
 }
@@ -304,23 +365,25 @@ function setupGui(videoList) {
     output.add(guiState.output, 'showPoints')
     output.add(guiState.output,'flipHorizontal')
 
+    let person = gui.addFolder('PersonDetection')
+    person.add(guiState.personDetection, 'open')
+    let interval = person.add(guiState.personDetection, 'interval',100,300)
+    interval.onChange(function (number) {
+        guiState.changePersonDetectionInterval = parseInt(number)
+    })
+
 }
 
 async function runDemo(){
 
     //load ssd model
-    // let ssd = await cocoSsd.load()
-
-    let ssd = null
+    let ssd = await cocoSsd.load()
 
     //load pose model
-    let net =await loadModel.load()
-    
-    let videoList = await loadVideoList(videoConfig)
+    let iFitNet =await loadModel.load()
 
-    if (DEBUG){
-        console.log(typeof(videoList))
-    }
+    //load trained videos
+    let videoList = await loadVideoList(videoConfig)
 
     let video = await loadVideo(guiState.video.name,videoConfig,'trainVideo',true)
 
@@ -347,7 +410,7 @@ async function runDemo(){
     setupGui(videoList)
     setupFPS()
 
-    detectPoseInRealTime(net,ssd,video)
+    detectPoseInRealTime(iFitNet,ssd,video)
 }
 
 runDemo()

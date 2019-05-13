@@ -8,7 +8,7 @@ import {andMask, getConfidenceMask, getDeactivateMask, isBelongMask} from "./uti
 import {loadVideoList,loadVideo} from "./utils/video";
 import {getCameraList,loadCamera} from "./utils/camera";
 import {compareTwoPoseWithScores} from "./utils/compareWithScore";
-import {getFrontUrl} from "./config";
+import {getFrontUrl} from "./utils/config";
 
 //DEBUG settings
 let DEBUG = 1
@@ -443,8 +443,8 @@ const guiState = {
         leftHip:true,
         leftKnee:true,
         leftAnkle:true,
-        Pelvis:true,
-        thorax:true,
+        Pelvis:false,
+        thorax:false,
         upperNeck:true,
         headTop:true,
         rightWrist:true,
