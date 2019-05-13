@@ -53,8 +53,8 @@ function cos(tensor1,tensor2) {
     if (result>1){
         result = 1
     }
-    if (result<0){
-        result = 0
+    if (result<-1){
+        result = -1
     }
     return  result
 }
@@ -149,7 +149,33 @@ function getAngleSimilarityScore(kpIndex,cameraPoseKp,videoPoseKp) {
 }
 
 /**
+ * 关节点相似度 = 关节点位置分布 * 关节点置信度/0.6
+ * @param cameraPoseKp
+ * @param videoPoseKp
+ * @param cameraPoseAngleDegrees
+ * @param videoPoseAngleDegrees
+ * @returns {number[]}
+ */
+function getAngleSimilarityScores(cameraPoseKp,videoPoseKp,cameraPoseAngleDegrees,videoPoseAngleDegrees) {
+    return angles.map((linkIndex1,linkIndex2)=>{
+        let [j11,j12] = links[linkIndex1];
+        let [j21,j22] = links[linkIndex2];
+
+        let min1 = cameraPoseKp[j11].score < cameraPoseKp[j12].score ? cameraPoseKp[j11].score: cameraPoseKp[j12].score;
+        let min2 = cameraPoseKp[j21].score < cameraPoseKp[j22].score ? cameraPoseKp[j21].score: cameraPoseKp[j22].score;
+        let minConfidence = min1 < min2 ? min1: min2;
+
+        //get min score of joint
+        let angelIndex = angles.indexOf([linkIndex1,linkIndex2]);
+        let differenceScore = Math.abs(cameraPoseAngleDegrees[angelIndex] - videoPoseAngleDegrees[angelIndex])/Math.PI;
+
+        return differenceScore * minConfidence /0.6;
+    })
+}
+
+/**
  * compute joint position similarity scores
+ *  关节点相似度 = 关节点位置分布 * 关节点置信度 / 0.6
  * @param cameraPoseKp
  * @param videoPoseKp
  * @returns {*[]}
@@ -175,16 +201,26 @@ function getJointSimilarityScores(cameraPoseKp,videoPoseKp) {
         return score>0? score/2 :0
     })
 
+    for (let i =0 ;i<count;i++){
+        scores[i] = scores[i] * cameraPoseKp[i].score / 0.6
+    }
+
     return [scores,tensors]
+}
+
+/**
+ * 姿态相似度 = lambda * 1/J * ∑关节点相似度 + (1-lambda) * 1/A * ∑角度相似度
+ * @param jointSimilarityScores
+ * @param angelSimilarityScores
+ * @param lambda
+ * @returns {number}
+ */
+function getPoseSimilarityScore(jointSimilarityScores,angelSimilarityScores,lambda) {
+    return lambda * math.mean(jointSimilarityScores) + (1-lambda) * math.mean(angelSimilarityScores)
 }
 
 function computePartSimilarityScores(cameraPose,videoPose,lambda){
     let result = new compareOutput();
-
-    let jointTotalSimilarityScores = []
-
-    let [jointPositionSimilarityScores,jointPositionTensors] = getJointSimilarityScores(cameraPose.keypoints,videoPose.keypoints)
-    let jointAngleSimilarityScores = []
 
     let cameraPoseAngleDegrees = angles.map(angelIndex=>{
         return computeAngle(angelIndex,cameraPose.keypoints)
@@ -194,22 +230,16 @@ function computePartSimilarityScores(cameraPose,videoPose,lambda){
         return computeAngle(angelIndex,videoPose.keypoints)
     })
 
-
-    for (let i =0 ; i< cameraPose.keypoints.length;i++){
-        let jointAngleSimilarityScore = getAngleSimilarityScore(i,cameraPose.keypoints,videoPose.keypoints)
-        let jointPositionSimilarityScore = jointPositionSimilarityScores[i]
-        let jointTotalSimilarityScore = (cameraPose.keypoints[i].score) * (lambda * jointAngleSimilarityScore + (1-lambda) * jointPositionSimilarityScore)
-
-        jointAngleSimilarityScores.push(jointAngleSimilarityScore)
-        jointTotalSimilarityScores.push(jointTotalSimilarityScore)
-    }
+    let [jointSimilarityScores,jointPositionTensors] = getJointSimilarityScores(cameraPose.keypoints,videoPose.keypoints)
+    let angelSimilarityScores = getAngleSimilarityScores(cameraPose.keypoints,videoPose.keypoints,cameraPoseAngleDegrees,videoPoseAngleDegrees)
+    let poseSimilarityScore = getPoseSimilarityScore(jointSimilarityScores,angelSimilarityScores,lambda)
 
     result.setPoses(cameraPose,videoPose)
     result.setLambda(lambda);
-    result.setJointPositionSimilarityScoresAndTensor(jointPositionSimilarityScores,jointPositionTensors);
-    result.setJointAngleSimilarityScores(jointPositionSimilarityScores);
+    result.setJointPositionSimilarityScoresAndTensor(jointSimilarityScores,jointPositionTensors);
+    result.setAngleSimilarityScores(angelSimilarityScores);
     result.setAngleDegrees(cameraPoseAngleDegrees,videoPoseAngleDegrees);
-    result.setJointTotalSimilarityScores(jointTotalSimilarityScores);
+    result.setPoseSimilarityScore(poseSimilarityScore);
 
     return result
 }
@@ -222,10 +252,6 @@ function computePartSimilarityScores(cameraPose,videoPose,lambda){
  * @returns {compareOutput}
  */
 export function compareTwoPoseWithScores(cameraPose,videoPose,lambda){
-    // console.log('cameraPose',cameraPose)
-    // console.log('videoPose',videoPose)
-    // console.log(jointIndexMap)
-
     let result = computePartSimilarityScores(cameraPose,videoPose,lambda);
 
     return result;
@@ -242,14 +268,14 @@ export class compareOutput{
         this.comparePose = comparePose;
     }
     setJointPositionSimilarityScoresAndTensor(scores,tensors){
-        this.jointPositionScores = scores
+        this.jointSimilarityScores = scores
         this.jointPositionTensors = tensors
     }
-    setJointAngleSimilarityScores(scores){
-        this.jointAngleScores = scores
+    setAngleSimilarityScores(scores){
+        this.angleSimilarityScores = scores
     }
-    setJointTotalSimilarityScores(scores){
-        this.jointTotalSimilarityScores = scores
+    setPoseSimilarityScore(score){
+        this.poseSimilarityScore = score
     }
     setAngleDegrees(cameraAngle,compareAngle){
         this.cameraAngle = cameraAngle;

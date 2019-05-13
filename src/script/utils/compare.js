@@ -1,28 +1,10 @@
-const links = [[0,1],[1,2],[2,6],[3,6],[4,3],[5,4],[10,11], [11,12],[12,8],[13,8],[14,13],[15,14],[7,8],[8,9],[8,2],[8,3]]
-const angles = [[0,1],[1,14],[4,15],[5,4],[6,7],[7,8],[9,10],[10,11]]
+import {getAngles, getLinks} from "./config";
+
+const links = getLinks()
+const angles = getAngles()
 
 let DEBUG = 0;
 
-/*
-const joints={
-        rightAnkle:0,
-        rightKnee:1,
-        rightHip:2,
-        leftHip:3,
-        leftKnee:4,
-        leftAnkle:5,
-        pelvis:6,
-        thorax:7,
-        upperNeck:8,
-        headTop:9,
-        rightWrist:10,
-        rightElbow:11,
-        rightShoulder:12,
-        leftShoulder:13,
-        leftElbow:14,
-        leftWrist:15
-}
-*/
 
 function toTuple({y, x}) {
     return [y, x];
