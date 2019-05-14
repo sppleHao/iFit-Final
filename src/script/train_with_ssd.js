@@ -90,7 +90,7 @@ function detectPoseInRealTime(iFitNet,ssd,video) {
 
         if (guiState.changePersonDetectionInterval){
             clearInterval(detection);
-            console.log(detection)
+            // console.log(detection)
             detection = setInterval(detectPersons,guiState.changePersonDetectionInterval)
             guiState.changePersonDetectionInterval = null
         }
@@ -111,7 +111,7 @@ function detectPoseInRealTime(iFitNet,ssd,video) {
             }
         }
 
-        console.log("box",guiState.person)
+        // console.log("box",guiState.person)
         //draw image in canvas
 
         if (guiState.person.length>0&&guiState.personDetection.open){
@@ -274,8 +274,8 @@ const guiState = {
         leftHip:true,
         leftKnee:true,
         leftAnkle:true,
-        Pelvis:true,
-        thorax:true,
+        Pelvis:false,
+        thorax:false,
         upperNeck:true,
         headTop:true,
         rightWrist:true,
@@ -345,8 +345,17 @@ function setupGui(videoList) {
     let joints = gui.addFolder('Joint Controller')
     for (let k in guiState.joints){
         let c = joints.add(guiState.joints,k.toString())
+        let index = Joints.indexOf(k.toString())
+
+        if (guiState.joints[k]){
+            guiState.deactivateArray.remove(index)
+        }
+        else {
+            console.log(index)
+            guiState.deactivateArray.push(index)
+        }
+
         c.onChange(function () {
-            let index = Joints.indexOf(k.toString())
             if (guiState.joints[k]){
                 guiState.deactivateArray.remove(index)
             }

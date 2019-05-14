@@ -38,7 +38,7 @@ function detectPoseInRealTime(net,ssd,video) {
     const bctx = bcanvas.getContext('2d');
 
     async function detectPerson() {
-        console.time('detect')
+        // console.time('detect')
         let objs =await ssd.detect(canvas)
         objs.forEach(obj=>{
             if (obj.class=='person'){
@@ -53,7 +53,7 @@ function detectPoseInRealTime(net,ssd,video) {
                 // guiState.person = obj.bbox
             }
         })
-        console.timeEnd('detect')
+        // console.timeEnd('detect')
     }
 
     async function poseDetectionFrame() {
@@ -282,16 +282,27 @@ function setupGui(videoList) {
     confidence.add(guiState.confidence,'minPoseConfidence',0.0,1.0)
 
     let joints = gui.addFolder('Joint Controller')
+
     for (let k in guiState.joints){
         let c = joints.add(guiState.joints,k.toString())
+
+        let index = Joints.indexOf(k.toString())
+        if (guiState.joints[k]){
+            guiState.deactivateArray.remove(index)
+        }
+        else {
+            console.log(index)
+            guiState.deactivateArray.push(index)
+        }
+
         c.onChange(function () {
-            let index = Joints.indexOf(k.toString())
             if (guiState.joints[k]){
                 guiState.deactivateArray.remove(index)
             }
             else {
                 guiState.deactivateArray.push(index)
             }
+
             if(DEBUG) {
                 console.log(guiState.deactivateArray)
             }

@@ -4,10 +4,10 @@ import $ from 'jquery'
 import * as math from 'mathjs'
 import * as loadModel from "./net/iFitNet/src/loadModel"
 import {drawKeypointsWithMask, drawSkeletonWithMask, loadCanvas} from "./utils/canvas";
-import {andMask, getConfidenceMask, getDeactivateMask, isBelongMask} from "./utils/confidence";
+import {andMask, getConfidenceMask, getDeactivateMask} from "./utils/confidence";
 import {loadVideoList,loadVideo} from "./utils/video";
 import {getCameraList,loadCamera} from "./utils/camera";
-import {compareTwoPoseWithScores} from "./utils/compareWithScore";
+import {compareTwoPoseWithScores,compareOutput} from "./utils/compareWithScore";
 import {getFrontUrl} from "./utils/config";
 
 //DEBUG settings
@@ -122,27 +122,20 @@ Array.prototype.remove = function(val) {
  * @returns {*[]}
  */
 function comparePoseWithVideo(currentPose,comparedPoses,threshHold){
-    let totalSimilarityScoreArray = [];
-    let partSimilarityScoresArray = [];
+    let results = [];
+    let poseSimilarityScores = []
     for (let i=0;i<comparedPoses.length;i++){
-        let [totalSimilarityScore,partSimilarityScores] = compareTwoPoseWithScores(currentPose,comparedPoses[i],guiState.confidence.lambda)
-        totalSimilarityScoreArray.push(totalSimilarityScore)
-        partSimilarityScoresArray.push(partSimilarityScores)
+        let result = compareTwoPoseWithScores(currentPose,comparedPoses[i],guiState.confidence.lambda)
+        results.push(result)
+        poseSimilarityScores.push(result.getPoseSimilarityScore())
     }
 
     // console.log('array',partSimilarityScoresArray)
-    let maxTotalSimilarityScore = totalSimilarityScoreArray.max()
-    let maxPartSimilarityScores = partSimilarityScoresArray[totalSimilarityScoreArray.indexOf(maxTotalSimilarityScore)]
-
-    if (DEBUG){
-        console.log('maxTotalSimilarityScore')
-        console.log(maxTotalSimilarityScore)
-        console.log('maxPartSimilarityScores')
-        console.log(maxPartSimilarityScores)
-    }
+    let maxTotalSimilarityScore = poseSimilarityScores.max()
+    let finalResult = results[poseSimilarityScores.indexOf(maxTotalSimilarityScore)]
 
 
-    return [maxTotalSimilarityScore,maxPartSimilarityScores];
+    return [maxTotalSimilarityScore,finalResult];
 }
 
 /**
@@ -251,7 +244,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
             cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
             vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
             poses.push(pose)
-            if (guiState.output.showVideo){
+            if (guiState.output.showVideo){ 
                 if (guiState.output.flipHorizontal) {
                     cctx.save()
                     cctx.scale(-1, 1)
@@ -288,7 +281,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                     drawSkeletonWithMask(pose.keypoints,cctx,pose.mask)
                 }
 
-                let [maxTotalSimilarityScore,maxPartSimilarityScores] = comparePoseWithVideo(pose,comparePoses,guiState.confidence.compareThreshold)
+                let [maxTotalSimilarityScore,result] = comparePoseWithVideo(pose,comparePoses,guiState.confidence.compareThreshold)
 
                 // console.log(maxPartSimilarityScores)
 
@@ -299,76 +292,6 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
                 }
 
-                // let i=0;
-                // function returnFloat(value){
-                //     var value=Math.round(parseFloat(value)*100)/100;
-                //     var xsd=value.toString().split(".");
-                //     if(xsd.length==1){
-                //         value=value.toString()+".00";
-                //         return value;
-                //     }
-                //     if(xsd.length>1){
-                //         if(xsd[1].length<2){
-                //             value=value.toString()+"0";
-                //         }
-                //         return value;
-                //     }
-                // }
-                //
-                // let text =maxPartSimilarityScores.map(s=>{
-                //     return Joints[i++]+returnFloat(s).toString()
-                // })
-                // font.innerText = text.slice(0,8)
-                // mark.innerText = text.slice(8,16)
-
-
-                // if (comparePoses.length==0){
-                //     font.innerText='未检测到所有关键点';
-                //     video.pause();
-                // }
-                // else {
-                //     let [maxTotalSimilarityScore,maxPartSimilarityScores] = comparePoseWithVideo(pose,comparePoses,guiState.confidence.compareThreshold)
-                //
-                //     if (DEBUG){
-                //         console.log('comparePose:');
-                //         console.log(comparePoses);
-                //         console.log(isPass)
-                //         console.log('kps:')
-                //         console.log(pose.keypoints)
-                //         console.log('low confidence kps:')
-                //         console.log(lowConfidenceJointMask)
-                //     }
-                //
-                //     if (noPassNum==-1){
-                //         font.innerText = '无有效关键点'
-                //         video.pause()
-                //     }
-                //     else{
-                //         if (noPassNum==0){
-                //             font.innerText = '通过'
-                //             if (guiState.output.showPoints) {
-                //                 drawKeypointsWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',4)
-                //             }
-                //
-                //             if (guiState.output.showSkeleton){
-                //                 drawSkeletonWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',3)
-                //             }
-                //         }
-                //         else {
-                //             font.innerText = '未通过'+ noPassNum.toString()
-                //
-                //             if (guiState.output.showPoints) {
-                //                 drawKeypointsWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',4)
-                //                 drawKeypointsWithMask(pose.keypoints,cctx,lowConfidenceJointMask,'red',5)
-                //             }
-                //
-                //             if (guiState.output.showSkeleton){
-                //                 drawSkeletonWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',3)
-                //                 drawSkeletonWithMask(pose.keypoints,cctx,lowConfidenceJointMask,'red',4)
-                //             }
-                //         }
-                //     }
-                // }
             })
 
         }

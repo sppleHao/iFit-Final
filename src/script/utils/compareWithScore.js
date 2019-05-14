@@ -1,4 +1,5 @@
 import * as math from 'mathjs'
+import {andMask} from "./confidence";
 import {getAngles, getLinks} from "./config";
 
 const links = getLinks();
@@ -21,7 +22,11 @@ function toTuple({y, x}) {
     return [y, x];
 }
 
-function getTensor([x1,y1],[x2,y2]) {
+function getTensorMul([x,y],scale) {
+    return [x*scale,y*scale]
+}
+
+function getTensorSub([x1,y1],[x2,y2]) {
     return [x1-x2,y1-y2]
 }
 
@@ -66,11 +71,11 @@ function cos(tensor1,tensor2) {
  * @returns {*}
  */
 function euclidean(joint1,joint2) {
-    return norm(getTensor(toTuple(joint1.position),toTuple(joint2.position)))
+    return norm(getTensorSub(toTuple(joint1.position),toTuple(joint2.position)))
 }
 
 function getCompareJointTensor(joint1,joint2) {
-    return getTensor(toTuple(joint1.position),toTuple(joint2.position))
+    return getTensorSub(toTuple(joint1.position),toTuple(joint2.position))
 }
 
 /**
@@ -84,7 +89,7 @@ export function getAngleCos(kps,angleIndex) {
     let tensors = linkIndexes.map((linkIndex)=>{
         let link = links[linkIndex]
         // console.log('link',link,toTuple(kps[link[0]].position),toTuple(kps[link[1]].position))
-        return getTensor(toTuple(kps[link[0]].position),toTuple(kps[link[1]].position))
+        return getTensorSub(toTuple(kps[link[0]].position),toTuple(kps[link[1]].position))
     })
 
     // console.log('tensors',tensors)
@@ -113,43 +118,7 @@ function computeAngle(angleIndex,keypoints) {
 }
 
 /**
- * return compare degrees of two angles
- * @param angleIndex
- * @param kps1
- * @param kps2
- * @returns {number}
- */
-function computeAngleScore(angleIndex,kps1,kps2){
-    let score1 = computeAngle(angleIndex,kps1)
-    let score2 = computeAngle(angleIndex,kps2)
-    return Math.abs(score1-score2)/ Math.PI
-}
-
-/**
- * compute joint's associate angel similarity score
- * @param kpIndex
- * @param cameraPoseKp
- * @param videoPoseKp
- * @returns {number}
- */
-function getAngleSimilarityScore(kpIndex,cameraPoseKp,videoPoseKp) {
-    let score = 0
-    let associateAngleIndexes = getAssociateAngles(kpIndex)
-    if (associateAngleIndexes.length==0){
-        return 1;
-    }
-    else {
-        associateAngleIndexes.forEach(angleIndex=>{
-            let angelScore = computeAngleScore(angleIndex,cameraPoseKp,videoPoseKp)
-            // console.log(angelScore)
-            score += angelScore
-        })
-        return 1 - score/associateAngleIndexes.length
-    }
-}
-
-/**
- * 关节点相似度 = 关节点位置分布 * 关节点置信度/0.6
+ * 关节点相似度 = 关节点位置分布 * 关节点置信度
  * @param cameraPoseKp
  * @param videoPoseKp
  * @param cameraPoseAngleDegrees
@@ -157,7 +126,8 @@ function getAngleSimilarityScore(kpIndex,cameraPoseKp,videoPoseKp) {
  * @returns {number[]}
  */
 function getAngleSimilarityScores(cameraPoseKp,videoPoseKp,cameraPoseAngleDegrees,videoPoseAngleDegrees) {
-    return angles.map((linkIndex1,linkIndex2)=>{
+    let angleIndex = 0;
+    return angles.map(([linkIndex1,linkIndex2])=>{
         let [j11,j12] = links[linkIndex1];
         let [j21,j22] = links[linkIndex2];
 
@@ -165,12 +135,71 @@ function getAngleSimilarityScores(cameraPoseKp,videoPoseKp,cameraPoseAngleDegree
         let min2 = cameraPoseKp[j21].score < cameraPoseKp[j22].score ? cameraPoseKp[j21].score: cameraPoseKp[j22].score;
         let minConfidence = min1 < min2 ? min1: min2;
 
-        //get min score of joint
-        let angelIndex = angles.indexOf([linkIndex1,linkIndex2]);
-        let differenceScore = Math.abs(cameraPoseAngleDegrees[angelIndex] - videoPoseAngleDegrees[angelIndex])/Math.PI;
+        if (minConfidence== -1){
+            angleIndex++
+            return -1;
+        }
 
-        return differenceScore * minConfidence /0.6;
+        //get min score of joint
+        let differenceScore = 1 - Math.abs(cameraPoseAngleDegrees[angleIndex] - videoPoseAngleDegrees[angleIndex])/180;
+
+        angleIndex++
+
+        return differenceScore * minConfidence;
     })
+}
+
+function getMaskJointsPosition(Kps,mask){
+    let x_list = []
+    let y_list = []
+    for (let i=0;i<Kps.length;i++){
+        if (mask[i]){
+            let out = toTuple(Kps[i].position)
+            x_list.push(out[1])
+            y_list.push(out[0])
+        }
+    }
+
+    return [x_list,y_list]
+}
+
+function getCenterOfPose(Kps,mask) {
+
+    let [x_list,y_list] = getMaskJointsPosition(Kps,mask)
+
+    let meanx = math.mean(x_list);
+    let meany = math.mean(y_list);
+
+    return [meany,meanx]
+}
+
+function getSiegeArea(Kps,mask) {
+    let [x_list,y_list] = getMaskJointsPosition(Kps,mask)
+    
+    if (x_list.length>0){
+        let minX = math.min(x_list)
+        let maxX = math.max(x_list)
+        let minY = math.min(y_list)
+        let maxY = math.max(y_list)
+        return (maxX-minX) * (maxY - minY)
+    }
+    else {
+        return -1;
+    }
+
+}
+
+function getScaleOfPose(cameraPoseKp,videoPoseKp,mask) {
+    let cameraArea = getSiegeArea(cameraPoseKp,mask)
+    let videoArea = getSiegeArea(videoPoseKp,mask)
+    
+    if (cameraArea!=-1 && videoArea!=-1){
+        return  videoArea / cameraArea
+    }
+    else {
+        return 1;
+    }
+
 }
 
 /**
@@ -180,18 +209,44 @@ function getAngleSimilarityScores(cameraPoseKp,videoPoseKp,cameraPoseAngleDegree
  * @param videoPoseKp
  * @returns {*[]}
  */
-function getJointSimilarityScores(cameraPoseKp,videoPoseKp) {
+function getJointSimilarityScores(cameraPoseKp,videoPoseKp,mask) {
     let distances = []
     let tensors = []
     let count =cameraPoseKp.length
+
+    let cameraPoseCenter = getCenterOfPose(cameraPoseKp,mask);
+    let videoPoseCenter = getCenterOfPose(videoPoseKp,mask);
+
+    let scale =getScaleOfPose(cameraPoseKp,videoPoseKp,mask)
+    let tensorOffset = getTensorSub(getTensorMul(cameraPoseCenter,scale),videoPoseCenter)
+    console.log(scale,tensorOffset)
+
     for (let i=0;i<count;i++){
         let j1 = cameraPoseKp[i]
         let j2 = videoPoseKp[i]
-        let distance = euclidean(j1,j2)
-        let tensor = getCompareJointTensor(j1,j2)
+        // let distance = euclidean(j1,j2)
+        let j1Tensor = toTuple(j1.position)
+        let j2Tensor = toTuple(j2.position)
+        let tensorDiff = getTensorSub(getTensorMul(j1Tensor,scale),j2Tensor)
+        let tensor = getTensorSub(tensorDiff,tensorOffset)
         tensors.push(tensor)
-        distances.push(distance)
+        // distances.push(distance)
     }
+
+    // let x_list = tensors.map((t)=>{return t[0]})
+    // let y_list = tensors.map((t)=>{return t[1]})
+    //
+    // let medianX = math.median(x_list)
+    // let medianY = math.median(y_list)
+    //
+    // console.log(medianX,medianY)
+
+    tensors.forEach(tensor=>{
+        // tensor[0] -= medianX;
+        // tensor[1] -= medianY;
+        distances.push(norm(tensor))
+    })
+
 
     let mean = math.mean(distances)
     let stddev = math.std(distances)
@@ -202,7 +257,12 @@ function getJointSimilarityScores(cameraPoseKp,videoPoseKp) {
     })
 
     for (let i =0 ;i<count;i++){
-        scores[i] = scores[i] * cameraPoseKp[i].score / 0.6
+        if (cameraPoseKp[i].score==-1){
+            scores[i] = -1
+        }
+        else {
+            scores[i] = scores[i] * cameraPoseKp[i].score / 0.6
+        }
     }
 
     return [scores,tensors]
@@ -219,18 +279,28 @@ function getPoseSimilarityScore(jointSimilarityScores,angelSimilarityScores,lamb
     return lambda * math.mean(jointSimilarityScores) + (1-lambda) * math.mean(angelSimilarityScores)
 }
 
-function computePartSimilarityScores(cameraPose,videoPose,lambda){
+function computePartSimilarityScores(cameraPose,videoPose,lambda,mask){
     let result = new compareOutput();
 
-    let cameraPoseAngleDegrees = angles.map(angelIndex=>{
+    let cameraPoseAngleRadian = angles.map(angle=>{
+        let angelIndex = angles.indexOf(angle)
         return computeAngle(angelIndex,cameraPose.keypoints)
     })
 
-    let videoPoseAngleDegrees = angles.map(angelIndex=>{
+    let videoPoseAngleRadian = angles.map(angle=>{
+        let angelIndex = angles.indexOf(angle)
         return computeAngle(angelIndex,videoPose.keypoints)
     })
 
-    let [jointSimilarityScores,jointPositionTensors] = getJointSimilarityScores(cameraPose.keypoints,videoPose.keypoints)
+    let cameraPoseAngleDegrees = cameraPoseAngleRadian.map(radian=>{
+        return radian * 180 /Math.PI;
+    })
+
+    let videoPoseAngleDegrees = videoPoseAngleRadian.map(radian=>{
+        return radian * 180 /Math.PI;
+    })
+
+    let [jointSimilarityScores,jointPositionTensors] = getJointSimilarityScores(cameraPose.keypoints,videoPose.keypoints,mask)
     let angelSimilarityScores = getAngleSimilarityScores(cameraPose.keypoints,videoPose.keypoints,cameraPoseAngleDegrees,videoPoseAngleDegrees)
     let poseSimilarityScore = getPoseSimilarityScore(jointSimilarityScores,angelSimilarityScores,lambda)
 
@@ -238,6 +308,7 @@ function computePartSimilarityScores(cameraPose,videoPose,lambda){
     result.setLambda(lambda);
     result.setJointPositionSimilarityScoresAndTensor(jointSimilarityScores,jointPositionTensors);
     result.setAngleSimilarityScores(angelSimilarityScores);
+    result.setAngleRadians(cameraPoseAngleRadian,videoPoseAngleRadian);
     result.setAngleDegrees(cameraPoseAngleDegrees,videoPoseAngleDegrees);
     result.setPoseSimilarityScore(poseSimilarityScore);
 
@@ -252,8 +323,16 @@ function computePartSimilarityScores(cameraPose,videoPose,lambda){
  * @returns {compareOutput}
  */
 export function compareTwoPoseWithScores(cameraPose,videoPose,lambda){
-    let result = computePartSimilarityScores(cameraPose,videoPose,lambda);
-
+    let mask = andMask(cameraPose.mask,videoPose.mask)
+    // console.log(cameraPose)
+    for (let i=0;i<mask.length;i++) {
+        if (!mask[i]) {
+            cameraPose.keypoints[i].score = -1
+        }
+    }
+    // console.log(cameraPose)
+    let result = computePartSimilarityScores(cameraPose,videoPose,lambda,mask);
+    console.log(result)
     return result;
 }
 
@@ -278,10 +357,23 @@ export class compareOutput{
         this.poseSimilarityScore = score
     }
     setAngleDegrees(cameraAngle,compareAngle){
-        this.cameraAngle = cameraAngle;
-        this.compareAngle = compareAngle;
+        this.cameraAngleDegrees = cameraAngle;
+        this.compareAngleDegrees = compareAngle;
+    }
+    setAngleRadians(cameraAngle,compareAngle){
+        this.cameraAngleRadians = cameraAngle;
+        this.compareAngleRadians = compareAngle;
     }
     setLambda(lambda){
         this.lambda = lambda
+    }
+    getPoseSimilarityScore(){
+        return this.poseSimilarityScore;
+    }
+    getJointSimilarityScores(){
+        return this.jointSimilarityScores
+    }
+    getAngleSimilarityScores(){
+        return this.angleSimilarityScores
     }
 }

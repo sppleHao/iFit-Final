@@ -2,12 +2,12 @@ import Stats from 'stats.js'
 import dat from 'dat.gui'
 import $ from 'jquery'
 import * as loadModel from "./net/iFitNet/src/loadModel"
-import {angelArrayToJointMask, compareTwoPose} from "./utils/compare";
 import {drawKeypointsWithMask, drawSkeletonWithMask, loadCanvas} from "./utils/canvas";
 import {andMask, getConfidenceMask, getDeactivateMask, isBelongMask} from "./utils/confidence";
 import {loadVideoList,loadVideo} from "./utils/video";
 import {getCameraList,loadCamera} from "./utils/camera";
 import {getFrontUrl} from "./utils/config";
+import {compareTwoPoseWithScores} from "./utils/compareWithScore";
 
 //DEBUG settings
 let DEBUG = 1
@@ -68,50 +68,16 @@ Array.prototype.remove = function(val) {
 }
 
 /**
- * compare poses
+ *
  * @param currentPose
  * @param comparedPoses
  * @param threshHold
- * @returns {*[]}
+ * @returns {compareOutput}
  */
-function comparePoseWithVideo(currentPose,comparedPoses,threshHold){
-    let minNoPassNum = 100;
-    let lowConfidenceJointsMask = null;
-    let overConfidenceJointsMask = null;
-    for (let i=0;i<comparedPoses.length;i++){
-        let [lowConfidenceAngelArray,overConfidenceAngelArray] = compareTwoPose(currentPose,comparedPoses[i],threshHold);
-
-        let noPassNum = lowConfidenceAngelArray.length;
-        let passNum = overConfidenceAngelArray.length;
-
-        // console.log('no pass',noPassNum)
-
-        if (noPassNum==0&&passNum>0){
-            overConfidenceJointsMask = andMask(currentPose.mask,angelArrayToJointMask((overConfidenceAngelArray)));
-            return [true,0,[],overConfidenceJointsMask];
-        }
-        if (noPassNum>0 && minNoPassNum>noPassNum){
-            minNoPassNum = noPassNum;
-            lowConfidenceJointsMask = andMask(currentPose.mask,angelArrayToJointMask((lowConfidenceAngelArray)));
-            overConfidenceJointsMask = andMask(currentPose.mask,angelArrayToJointMask((overConfidenceAngelArray)));
-        }
-    }
-
-    //all pose is invalid
-    if (minNoPassNum==100){
-        return [false,-1,[]];
-    }
-
-
-    if (DEBUG){
-        console.log('minNoPass')
-        console.log(minNoPassNum)
-        console.log('low confidenceJoint')
-        console.log(lowConfidenceJointsMask)
-    }
-
-
-    return [false,minNoPassNum,lowConfidenceJointsMask,overConfidenceJointsMask];
+function comparePoseWithVideo(currentPose,comparedPose,lambda){
+    let result = compareTwoPoseWithScores(currentPose,comparedPose,lambda);
+    console.log(result)
+    return result
 }
 
 /**
@@ -140,6 +106,8 @@ function detectPoseInRealTime(net,model,camera,poseFile) {
 
     //config
     let startIndex = 0
+
+    let state = 0;
 
     if (DEBUG){
         console.log('videoFPS')
@@ -170,9 +138,6 @@ function detectPoseInRealTime(net,model,camera,poseFile) {
 
         //get the pose
         if (net){
-
-            // console.time('poseTime')
-
             let poses =[]
             let pose = await net.estimateSinglePose(camera, guiState.output.flipHorizontal)
 
@@ -188,7 +153,6 @@ function detectPoseInRealTime(net,model,camera,poseFile) {
             let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
             mask = andMask(mask,deactivateMask);
             pose.mask = mask
-
 
             if (DEBUG){
                 console.log('afterFilter...')
@@ -222,70 +186,61 @@ function detectPoseInRealTime(net,model,camera,poseFile) {
             poses.forEach((pose)=>{
                 //get compare poses (0-1seconds)
 
-                //todo
-                let [newIndex , comparePoses] =getComparedPose(pose,model,poseFile,startIndex,deactivateMask)
-                startIndex = newIndex
-
-                if (guiState.output.showPoints){
-                    drawKeypointsWithMask(pose.keypoints,cctx,pose.mask)
-                    // drawKeypointsWithMask(poseFile[startIndex].keypoints,cctx,poseFile[startIndex].mask)
+                if (state == 0){
+                    //play model
+                    if (videoConfig.videoState=='pause'){
+                        state=1
+                    }
                 }
-                if (guiState.output.showSkeleton){
-                    drawSkeletonWithMask(pose.keypoints,cctx,pose.mask)
-                    // drawSkeletonWithMask(poseFile[startIndex].keypoints,cctx,poseFile[startIndex].mask)
-                }
+                else if(state == 1){ //if model play end
+                    //pose equals to start pose
+                    let comparePose = poseFile[startIndex];
 
-                if (comparePoses.length==0){
-                    // font.innerText='未检测到所有关键点';
-                    // model.pause();
-                }
-                else {
-                    let [isPass ,noPassNum , lowConfidenceJointMask,overConfidenceJointsMask] = comparePoseWithVideo(pose,comparePoses,guiState.confidence.compareThreshold)
-
-                    if (DEBUG){
-                        console.log('comparePose:');
-                        console.log(comparePoses);
-                        console.log(isPass)
-                        console.log('kps:')
-                        console.log(pose.keypoints)
-                        console.log('low confidence kps:')
-                        console.log(lowConfidenceJointMask)
+                    //draw pose in camera canvas
+                    if (guiState.output.showPoints){
+                        drawKeypointsWithMask(comparePose.keypoints,cctx,comparePose.mask)
+                    }
+                    if (guiState.output.showSkeleton){
+                        drawSkeletonWithMask(comparePose.keypoints,cctx,comparePose.mask)
                     }
 
-                    if (noPassNum==-1){
-                        // font.innerText = '无有效关键点'
-                        // model.pause()
-                    }
-                    else{
-                        if (noPassNum==0){
-                            // font.innerText = '通过'
-                            if (isPass&&videoConfig.videoState=='pause'){
-                                // video.play()
-                            }
-
-                            if (guiState.output.showPoints) {
-                                // drawKeypointsWithMask(comparePoses[0].keypoints,cctx,overConfidenceJointsMask,'green',4)
-                            }
-
-                            if (guiState.output.showSkeleton){
-                                // drawSkeletonWithMask(comparePoses[0].keypoints,cctx,overConfidenceJointsMask,'green',3)
-                            }
+                    if (startIndex==0){
+                        //compare pose
+                        let result = comparePoseWithVideo(pose,comparePose,guiState.confidence.lambda)
+                        let score = result.getPoseSimilarityScore()
+                        if (score>guiState.confidence.compareThreshold){
+                            console.log(score)
+                            startIndex++;
+                            //voice:pass
                         }
                         else {
-                            // font.innerText = '未通过'+ noPassNum.toString()
-                            if(!isPass&&videoConfig.videoState=='play') {
-                                // video.pause()
-                            }
+                            //voice
+                        }
 
-                            if (guiState.output.showPoints) {
-                                // drawKeypointsWithMask(comparePoses[0].keypoints,cctx,overConfidenceJointsMask,'green',4)
-                                // drawKeypointsWithMask(comparePoses[0].keypoints,cctx,lowConfidenceJointMask,'red',5)
-                            }
+                        font.innerText = score.toString()
+                    }
+                    else if (startIndex==poseFile.length-1){
+                        //compare pose and change state
+                        let result = comparePoseWithVideo(pose,comparePose,guiState.confidence.minPoseConfidence);
+                        let score = result.getPoseSimilarityScore()
+                        if (score>guiState.confidence.compareThreshold){
+                            //show pass or score todo
 
-                            if (guiState.output.showSkeleton){
-                                // drawSkeletonWithMask(comparePoses[0].keypoints,cctx,overConfidenceJointsMask,'green',3)
-                                // drawSkeletonWithMask(comparePoses[0].keypoints,cctx,lowConfidenceJointMask,'red',4)
-                            }
+                            //change state
+                            state = 0;
+                            startIndex=0;
+                            model.play();
+                        }
+                        else {
+                            //voice
+                        }
+
+                        font.innerText = score.toString()
+                    }
+                    else {
+                        //show pose track
+                        if (startIndex<poseFile.length-1) {
+                            startIndex++;
                         }
                     }
                 }
@@ -312,7 +267,8 @@ const guiState = {
     },
     confidence:{
         minPoseConfidence:0.15,
-        compareThreshold:0.4
+        compareThreshold:0.4,
+        lambda:0.7
     },
     joints:{
         rightAnkle:true,
@@ -475,7 +431,23 @@ async function runDemo(){
     let videoList = await loadVideoList(videoConfig)
 
     //load 3d model
-    let model = await loadVideo(guiState.video.name,videoConfig,'model')
+    let model = await loadVideo(guiState.video.name,videoConfig,'model',true)
+
+    model.addEventListener('play',function () {
+        videoConfig.videoState='play';
+        setTimeout(()=>{
+            model.pause()
+        },2600)
+    });
+
+    model.addEventListener('pause',function () {
+        videoConfig.videoState='pause';
+    });
+
+    model.addEventListener('ended',function () {
+        videoConfig.videoState='ended';
+        model.pause();
+    });
 
     //load pose(skeleton) file from Backend
     let poseFile = await loadPoseFile()

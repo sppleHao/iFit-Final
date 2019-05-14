@@ -2,12 +2,13 @@ import Stats from 'stats.js'
 import dat from 'dat.gui'
 import $ from 'jquery'
 import * as loadModel from "./net/iFitNet/src/loadModel"
-import {angelArrayToJointMask, compareTwoPose} from "./utils/compare";
 import {drawKeypointsWithMask, drawSkeletonWithMask, loadCanvas} from "./utils/canvas";
 import {andMask, getConfidenceMask, getDeactivateMask, isBelongMask} from "./utils/confidence";
 import {loadVideoList,loadVideo} from "./utils/video";
 import {getCameraList,loadCamera} from "./utils/camera";
 import {getFrontUrl} from "./utils/config";
+import {compareTwoPoseWithScores} from "./utils/compareWithScore";
+import {angelArrayToJointMask} from "./utils/utils";
 
 //DEBUG settings
 let DEBUG = 1
@@ -47,6 +48,13 @@ function getComparedPose(pose,video,poseFile,startIndex,fps,deactivateMask) {
     return [newIndex,comparePoses]
 }
 
+/**
+ * get max element from array
+ * @returns {number}
+ */
+Array.prototype.max = function(){
+    return Math.max.apply({},this)
+}
 
 /**
  * get min element from array
@@ -72,46 +80,23 @@ Array.prototype.remove = function(val) {
  * @param currentPose
  * @param comparedPoses
  * @param threshHold
- * @returns {*[]}
  */
-function comparePoseWithVideo(currentPose,comparedPoses,threshHold){
-    let minNoPassNum = 100;
-    let lowConfidenceJointsMask = null;
-    let overConfidenceJointsMask = null;
+function comparePoseWithVideoPoses(currentPose,comparedPoses,threshHold){
+    let results = [];
+    let poseSimilarityScores = []
     for (let i=0;i<comparedPoses.length;i++){
-        let [lowConfidenceAngelArray,overConfidenceAngelArray] = compareTwoPose(currentPose,comparedPoses[i],threshHold);
-
-        let noPassNum = lowConfidenceAngelArray.length;
-        let passNum = overConfidenceAngelArray.length;
-
-        // console.log('no pass',noPassNum)
-
-        if (noPassNum==0&&passNum>0){
-            overConfidenceJointsMask = andMask(currentPose.mask,angelArrayToJointMask((overConfidenceAngelArray)));
-            return [true,0,[],overConfidenceJointsMask];
-        }
-        if (noPassNum>0 && minNoPassNum>noPassNum){
-            minNoPassNum = noPassNum;
-            lowConfidenceJointsMask = andMask(currentPose.mask,angelArrayToJointMask((lowConfidenceAngelArray)));
-            overConfidenceJointsMask = andMask(currentPose.mask,angelArrayToJointMask((overConfidenceAngelArray)));
-        }
-    }
-
-    //all pose is invalid
-    if (minNoPassNum==100){
-        return [false,-1,[]];
+        let result = compareTwoPoseWithScores(currentPose,comparedPoses[i],guiState.confidence.lambda)
+        // console.log('result',result)
+        results.push(result)
+        poseSimilarityScores.push(result.getPoseSimilarityScore())
     }
 
 
-    if (DEBUG){
-        console.log('minNoPass')
-        console.log(minNoPassNum)
-        console.log('low confidenceJoint')
-        console.log(lowConfidenceJointsMask)
-    }
+    let maxTotalSimilarityScore = poseSimilarityScores.max()
+    let finalResult = results[poseSimilarityScores.indexOf(maxTotalSimilarityScore)]
 
 
-    return [false,minNoPassNum,lowConfidenceJointsMask,overConfidenceJointsMask];
+    return finalResult;
 }
 
 /**
@@ -238,59 +223,34 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                     drawSkeletonWithMask(pose.keypoints,cctx,pose.mask)
                 }
 
-                if (comparePoses.length==0){
-                    font.innerText='未检测到所有关键点';
-                    video.pause();
-                }
-                else {
-                    let [isPass ,noPassNum , lowConfidenceJointMask,overConfidenceJointsMask] = comparePoseWithVideo(pose,comparePoses,guiState.confidence.compareThreshold)
+                let result = comparePoseWithVideoPoses(pose,comparePoses,guiState.confidence.minPoseConfidence);
 
-                    if (DEBUG){
-                        console.log('comparePose:');
-                        console.log(comparePoses);
-                        console.log(isPass)
-                        console.log('kps:')
-                        console.log(pose.keypoints)
-                        console.log('low confidence kps:')
-                        console.log(lowConfidenceJointMask)
-                    }
-
-                    if (noPassNum==-1){
-                        font.innerText = '无有效关键点'
-                        video.pause()
-                    }
-                    else{
-                        if (noPassNum==0){
-                            font.innerText = '通过'
-                            if (isPass&&videoConfig.videoState=='pause'){
-                                video.play()
-                            }
-
-                            if (guiState.output.showPoints) {
-                                drawKeypointsWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',4)
-                            }
-
-                            if (guiState.output.showSkeleton){
-                                drawSkeletonWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',3)
-                            }
+                //draw low confidence joint
+                if (guiState.output.showPoints) {
+                    let jointScores = result.getJointSimilarityScores();
+                    let mask = []
+                    for (let i=0;i<jointScores.length;i++){
+                        if (jointScores[i]!=-1&&jointScores[i]<guiState.confidence.AngleCompareThreshold) {
+                            mask.push(true)
                         }
                         else {
-                            font.innerText = '未通过'+ noPassNum.toString()
-                            if(!isPass&&videoConfig.videoState=='play') {
-                                video.pause()
-                            }
-
-                            if (guiState.output.showPoints) {
-                                drawKeypointsWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',4)
-                                drawKeypointsWithMask(pose.keypoints,cctx,lowConfidenceJointMask,'red',5)
-                            }
-
-                            if (guiState.output.showSkeleton){
-                                drawSkeletonWithMask(pose.keypoints,cctx,overConfidenceJointsMask,'green',3)
-                                drawSkeletonWithMask(pose.keypoints,cctx,lowConfidenceJointMask,'red',4)
-                            }
+                            mask.push(false)
                         }
                     }
+                    drawKeypointsWithMask(pose.keypoints,cctx,mask,'red',5)
+                }
+
+                //draw low confidence angels
+                if (guiState.output.showSkeleton){
+                    let angelSimilarityScores = result.getAngleSimilarityScores();
+                    let angelArray = []
+                    for (let i=0;i<angelSimilarityScores.length;i++){
+                        if (angelSimilarityScores[i]!=-1&&angelSimilarityScores[i]<guiState.confidence.AngleCompareThreshold) {
+                            angelArray.push(i)
+                        }
+                    }
+                    let angleLowConfidenceJointMask = angelArrayToJointMask(angelArray);
+                    drawSkeletonWithMask(pose.keypoints,cctx,angleLowConfidenceJointMask,'orange',4)
                 }
             })
 
@@ -311,11 +271,13 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
 const guiState = {
     video:{
-        name:'out4.mp4'
+        name:'out2.mp4'
     },
     confidence:{
         minPoseConfidence:0.15,
-        compareThreshold:0.4
+        AngleCompareThreshold:0.3,
+        JointCompareThreshold:0.4,
+        lambda:0.7
     },
     joints:{
         rightAnkle:true,
@@ -403,7 +365,8 @@ function setupGui(videoList,cameras) {
 
     let confidence = gui.addFolder('Confidence Controller');
     confidence.add(guiState.confidence,'minPoseConfidence',0.0,1.0);
-    confidence.add(guiState.confidence,'compareThreshold',0.0,1.0);
+    confidence.add(guiState.confidence,'AngleCompareThreshold',0.0,1.0);
+    confidence.add(guiState.confidence,'JointCompareThreshold',0.0,1.0);
 
     //deactivate joints
     let joints = gui.addFolder('Joint Controller');
@@ -497,7 +460,9 @@ async function runDemo(){
     if (cameras.length>0){
         //load camera
         guiState.camera.deviceName = cameras[0].name
-        let camera = await loadCamera(cameras[0].id,videoConfig,'camera')
+        // let camera = await loadCamera(cameras[0].id,videoConfig,'camera')
+
+        let camera = await loadVideo('test.mp4',videoConfig,'camera',true)
 
         setupGui(videoList,cameras)
         setupFPS()
