@@ -149,10 +149,10 @@ function detectPoseInRealTime(net,model,camera,poseFile) {
             }
 
             //get mask
-            let mask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
+            let confidenceMask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
             let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
-            mask = andMask(mask,deactivateMask);
-            pose.mask = mask
+            pose.confidenceMask = confidenceMask
+            pose.deactivateMask = deactivateMask
 
             if (DEBUG){
                 console.log('afterFilter...')

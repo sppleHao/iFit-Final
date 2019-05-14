@@ -9,6 +9,7 @@ import {loadVideoList,loadVideo} from "./utils/video";
 import {getCameraList,loadCamera} from "./utils/camera";
 import {compareTwoPoseWithScores,compareOutput} from "./utils/compareWithScore";
 import {getFrontUrl} from "./utils/config";
+import {angelArrayToJointMask} from "./utils/utils";
 
 //DEBUG settings
 let DEBUG = 1
@@ -119,23 +120,24 @@ Array.prototype.remove = function(val) {
  * @param currentPose
  * @param comparedPoses
  * @param threshHold
- * @returns {*[]}
  */
-function comparePoseWithVideo(currentPose,comparedPoses,threshHold){
+function comparePoseWithVideoPoses(currentPose,comparedPoses,threshHold){
     let results = [];
     let poseSimilarityScores = []
     for (let i=0;i<comparedPoses.length;i++){
         let result = compareTwoPoseWithScores(currentPose,comparedPoses[i],guiState.confidence.lambda)
-        results.push(result)
         poseSimilarityScores.push(result.getPoseSimilarityScore())
+        results.push(result)
     }
 
-    // console.log('array',partSimilarityScoresArray)
+
     let maxTotalSimilarityScore = poseSimilarityScores.max()
     let finalResult = results[poseSimilarityScores.indexOf(maxTotalSimilarityScore)]
 
+    console.log('result',finalResult)
 
-    return [maxTotalSimilarityScore,finalResult];
+
+    return finalResult;
 }
 
 /**
@@ -229,10 +231,10 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
             }
 
             //get mask
-            let mask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
+            let confidenceMask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
             let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
-            mask = andMask(mask,deactivateMask);
-            pose.mask = mask
+            pose.confidenceMask = confidenceMask
+            pose.deactivateMask = deactivateMask
 
 
             if (DEBUG){
@@ -272,24 +274,46 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                 let [newIndex , comparePoses] =getComparedPose(pose,video,poseFile,startIndex,trainingFramePerSecond,deactivateMask)
                 startIndex = newIndex
 
+                let currentMask = andMask(pose.confidenceMask,pose.confidenceMask)
+
                 if (guiState.output.showPoints){
                     drawKeypointsWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
-                    drawKeypointsWithMask(pose.keypoints,cctx,pose.mask)
+                    drawKeypointsWithMask(pose.keypoints,cctx,currentMask)
                 }
                 if (guiState.output.showSkeleton){
                     drawSkeletonWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
-                    drawSkeletonWithMask(pose.keypoints,cctx,pose.mask)
+                    drawSkeletonWithMask(pose.keypoints,cctx,currentMask)
                 }
 
-                let [maxTotalSimilarityScore,result] = comparePoseWithVideo(pose,comparePoses,guiState.confidence.compareThreshold)
+                let result = comparePoseWithVideoPoses(pose,comparePoses,guiState.confidence.compareThreshold)
 
-                // console.log(maxPartSimilarityScores)
+                font.innerText = result.getPoseSimilarityScore()
 
-                // font.innerText = maxTotalSimilarityScore
-                partMarks.push(maxTotalSimilarityScore)
+                if (guiState.output.showPoints) {
+                    let jointScores =result.getJointSimilarityScores();
+                    let mask = []
+                    for (let i=0;i<jointScores.length;i++){
+                        if (jointScores[i]>0&&jointScores[i]<guiState.confidence.JointCompareThreshold) {
+                            mask.push(true)
+                        }
+                        else {
+                            mask.push(false)
+                        }
+                    }
+                    drawKeypointsWithMask(pose.keypoints,cctx,mask,'red',5)
+                }
 
-                if (videoConfig.videoState=='play'){
-
+                //draw low confidence angels
+                if (guiState.output.showSkeleton){
+                    let angelSimilarityScores = result.getAngleSimilarityScores();
+                    let angelArray = []
+                    for (let i=0;i<angelSimilarityScores.length;i++){
+                        if (angelSimilarityScores[i]>0&&angelSimilarityScores[i]<guiState.confidence.AngleCompareThreshold) {
+                            angelArray.push(i)
+                        }
+                    }
+                    let angleLowConfidenceJointMask = angelArrayToJointMask(angelArray);
+                    drawSkeletonWithMask(pose.keypoints,cctx,angleLowConfidenceJointMask,'orange',4)
                 }
 
             })
@@ -357,7 +381,8 @@ const guiState = {
     confidence:{
         lambda:0.7,
         minPoseConfidence:0.25,
-        compareThreshold:0.40
+        AngleCompareThreshold:0.1,
+        JointCompareThreshold:0.2,
     },
     joints:{
         rightAnkle:true,
@@ -447,8 +472,8 @@ function setupGui(videoList,cameras) {
 
     let confidence = gui.addFolder('Confidence Controller');
     confidence.add(guiState.confidence,'lambda',0.0,1.0);
-    confidence.add(guiState.confidence,'minPoseConfidence',0.0,1.0);
-    confidence.add(guiState.confidence,'compareThreshold',0.0,1.0);
+    confidence.add(guiState.confidence,'AngleCompareThreshold',0.0,1.0);
+    confidence.add(guiState.confidence,'JointCompareThreshold',0.0,1.0);
 
     //deactivate joints
     let joints = gui.addFolder('Joint Controller');

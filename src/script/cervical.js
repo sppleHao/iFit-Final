@@ -20,7 +20,7 @@ const guiState = {
     mushroom:null,
     boom:null,
     //降落速度
-    detaY:15,
+    detaY:5,
 
 }
 
@@ -113,7 +113,7 @@ function isFaceTouchMushroom(face,ctx) {
     landmarks.positions.forEach(({x,y})=>{
         xList.push(x)
         yList.push(y)
-        drawPoint(ctx, y, x, 2, 'aqua')
+        // drawPoint(ctx, y, x, 2, 'aqua')
     })
     minX=xList.min()
     maxX=xList.max()
