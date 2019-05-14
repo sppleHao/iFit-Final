@@ -22,8 +22,8 @@ function toTuple({y, x}) {
     return [y, x];
 }
 
-function getTensorMul([x,y],scale) {
-    return [x*scale,y*scale]
+function getTensorMul([x,y],[x2,y2]) {
+    return [x*x2,y*y2]
 }
 
 function getTensorSub([x1,y1],[x2,y2]) {
@@ -131,9 +131,8 @@ function getAngleSimilarityScores(cameraPoseKp,videoPoseKp,cameraPoseAngleDegree
         let [j11,j12] = links[linkIndex1];
         let [j21,j22] = links[linkIndex2];
 
-        let min1 = cameraPoseKp[j11].score < cameraPoseKp[j12].score ? cameraPoseKp[j11].score: cameraPoseKp[j12].score;
-        let min2 = cameraPoseKp[j21].score < cameraPoseKp[j22].score ? cameraPoseKp[j21].score: cameraPoseKp[j22].score;
-        let minConfidence = min1 < min2 ? min1: min2;
+        let scores = [cameraPoseKp[j21].score,cameraPoseKp[j12].score,cameraPoseKp[j21].score,cameraPoseKp[j22].score]
+        let minConfidence = math.min(scores)
 
         if (minConfidence== -1){
             angleIndex++
@@ -143,9 +142,12 @@ function getAngleSimilarityScores(cameraPoseKp,videoPoseKp,cameraPoseAngleDegree
         //get min score of joint
         let differenceScore = 1 - Math.abs(cameraPoseAngleDegrees[angleIndex] - videoPoseAngleDegrees[angleIndex])/180;
 
+        let medianConfidence = math.median(scores)
+        let meanConfidence = math.median(scores)
+
         angleIndex++
 
-        return differenceScore * minConfidence;
+        return differenceScore * meanConfidence;
     })
 }
 
@@ -181,24 +183,21 @@ function getSiegeArea(Kps,mask) {
         let maxX = math.max(x_list)
         let minY = math.min(y_list)
         let maxY = math.max(y_list)
-        return (maxX-minX) * (maxY - minY)
+        return [(maxX-minX)/2,(maxY-minY)/2];
     }
     else {
-        return -1;
+        return [1,1]
     }
+
+
 
 }
 
 function getScaleOfPose(cameraPoseKp,videoPoseKp,mask) {
-    let cameraArea = getSiegeArea(cameraPoseKp,mask)
-    let videoArea = getSiegeArea(videoPoseKp,mask)
+    let [cx,cy] = getSiegeArea(cameraPoseKp,mask)
+    let [vx,vy] = getSiegeArea(videoPoseKp,mask)
     
-    if (cameraArea!=-1 && videoArea!=-1){
-        return  videoArea / cameraArea
-    }
-    else {
-        return 1;
-    }
+    return [vx/cx,vy/cy]
 
 }
 
@@ -210,7 +209,7 @@ function getScaleOfPose(cameraPoseKp,videoPoseKp,mask) {
  * @returns {*[]}
  */
 function getJointSimilarityScores(cameraPoseKp,videoPoseKp,mask) {
-    let distances = []
+    let origin_distances = []
     let tensors = []
     let count =cameraPoseKp.length
 
@@ -218,17 +217,15 @@ function getJointSimilarityScores(cameraPoseKp,videoPoseKp,mask) {
     let videoPoseCenter = getCenterOfPose(videoPoseKp,mask);
 
     let scale =getScaleOfPose(cameraPoseKp,videoPoseKp,mask)
-    let tensorOffset = getTensorSub(getTensorMul(cameraPoseCenter,scale),videoPoseCenter)
-    console.log(scale,tensorOffset)
+    // console.log(scale,cameraPoseCenter,videoPoseCenter,tensorOffset)
 
     for (let i=0;i<count;i++){
         let j1 = cameraPoseKp[i]
         let j2 = videoPoseKp[i]
         // let distance = euclidean(j1,j2)
-        let j1Tensor = toTuple(j1.position)
-        let j2Tensor = toTuple(j2.position)
-        let tensorDiff = getTensorSub(getTensorMul(j1Tensor,scale),j2Tensor)
-        let tensor = getTensorSub(tensorDiff,tensorOffset)
+        let j1Tensor = getTensorSub(toTuple(j1.position),cameraPoseCenter)
+        let j2Tensor = getTensorSub(toTuple(j2.position),videoPoseCenter)
+        let tensor = getTensorSub(getTensorMul(j1Tensor,scale),j2Tensor)
         tensors.push(tensor)
         // distances.push(distance)
     }
@@ -241,31 +238,43 @@ function getJointSimilarityScores(cameraPoseKp,videoPoseKp,mask) {
     //
     // console.log(medianX,medianY)
 
-    tensors.forEach(tensor=>{
-        // tensor[0] -= medianX;
-        // tensor[1] -= medianY;
-        distances.push(norm(tensor))
-    })
+    let distances = []
 
-
-    let mean = math.mean(distances)
-    let stddev = math.std(distances)
-
-    let scores = distances.map((x)=>{
-        let score = 1- math.erf((x-mean)/stddev/math.sqrt(2));
-        return score>0? score/2 :0
-    })
-
-    for (let i =0 ;i<count;i++){
-        if (cameraPoseKp[i].score==-1){
-            scores[i] = -1
-        }
-        else {
-            scores[i] = scores[i] * cameraPoseKp[i].score / 0.6
+    for (let i=0;i<tensors.length;i++){
+        let tensor = tensors[i]
+        origin_distances.push(norm(tensor))
+        if (mask[i]){
+            distances.push(norm(tensor))
         }
     }
 
-    return [scores,tensors]
+    console.log(distances)
+
+    let median = math.median(distances)
+
+    let scores = distances.map(d=>{
+        return 1 / (1 + Math.exp(Math.abs(d-median)/1.15 / median) )
+    })
+
+    // let mean = math.mean(distances)
+    // let stddev = math.std(distances)
+    // let scores = distances.map( (x)=>{
+    //     let score = 1- math.erf((x-mean)/stddev/math.sqrt(2));
+    //     return score>0? score/2 :0
+    // })
+
+    for (let i =0 ;i<count;i++){
+        if (!mask[i]){
+            scores.splice(i,0,-1)
+        }
+        else {
+            // scores[i] = scores[i] *  /0.6
+        }
+    }
+
+    console.log(scores)
+
+    return [scores,origin_distances]
 }
 
 /**

@@ -227,7 +227,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
                 //draw low confidence joint
                 if (guiState.output.showPoints) {
-                    let jointScores = result.getJointSimilarityScores();
+                    let jointScores =result.getJointSimilarityScores();
                     let mask = []
                     for (let i=0;i<jointScores.length;i++){
                         if (jointScores[i]!=-1&&jointScores[i]<guiState.confidence.AngleCompareThreshold) {
