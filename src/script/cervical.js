@@ -20,7 +20,7 @@ const guiState = {
     mushroom:null,
     boom:null,
     //降落速度
-    detaY:5,
+    detaY:7,
 
 }
 
@@ -42,20 +42,20 @@ Array.prototype.max = function(){
 
 
 /**
- * 创建mushroom
+ * 创建mushroom/boom
  * @param x
  * @param y
  * @param w
  * @param h
  * @returns {Object}
  */
-function createMushroom(x,y,w,h){
-    let mushroom=new Object
-    mushroom.x=x
-    mushroom.y=y
-    mushroom.w=w
-    mushroom.h=h
-    return mushroom
+function createObject(x,y,w,h){
+    let object=new Object
+    object.x=x
+    object.y=y
+    object.w=w
+    object.h=h
+    return object
 }
 
 function createBoom(x,y,w,h) {
@@ -85,25 +85,15 @@ function ParamEllipse(context, x, y, a, b){
         }
 
 /**
- * 判断face和mushroom是否接触(点是否在框里面)
+ * 判断face和mushroom/boom是否接触(点是否在框里面)
  * @param face 17个点的脸部边缘 point = {x ,y}
  * @param mushroom 蘑菇的框 [x,y,w,h] x,y左上角的点
  */
-function isFaceTouchMushroom(face,ctx) {
+function isFaceTouchObject(face,ctx,object) {
     let flag=false
     const landmarks = face.landmarks
-    const jawOutline = landmarks.getJawOutline()
-    // let midX=jawOutline[8].x
-    // let midY=jawOutline[8].y
-    //console.log(jawOutline)
-    // jawOutline.forEach(({x,y})=>{
-    //     if(x>=guiState.mushroom.x && x<=guiState.mushroom.x+guiState.mushroom.w
-    //         && y>=guiState.mushroom.y && y<=guiState.mushroom.y+guiState.mushroom.h){
-    //         flag=true
-    //         return true;
-    //     }
-    // })
-    // console.log(landmarks)
+    // const jawOutline = landmarks.getJawOutline()
+
     let minX;
     let minY;
     let maxX;
@@ -119,25 +109,17 @@ function isFaceTouchMushroom(face,ctx) {
     maxX=xList.max()
     minY=yList.min()
     maxY=yList.max()
-    // let wid=jawOutline[16].x-jawOutline[0].x;
-    // let hei=jawOutline[8].y-jawOutline[0].y;
+
     ctx.lineWidth=10
     ctx.strokeStyle="red"
-    // ctx.strokeRect(midX-wid/2,midY-2*hei,wid,2*hei)
-    // ctx.ellipse(midX-wid/2,midY-2*hei, wid/2, hei, 0,0,Math.PI*2)
+
     ParamEllipse(ctx,(maxX+minX)/2,(minY+maxY)/2,(maxX-minX)/2,(maxY-minY)/2)
-    // drawPoint(ctx, midY+hei, midX+wid/2, 2, 'aqua')
-    // drawPoint(ctx, midY+hei, midX-wid/2, 2, 'aqua')
-    // drawPoint(ctx, midY-hei, midX-wid/2, 2, 'aqua')
-    // drawPoint(ctx, midY-hei, midX+wid/2, 2, 'aqua')
-    console.log(Math.pow(guiState.mushroom.x+37.5-(maxX+minX)/2,2)/(Math.pow((maxX-minX)/2,2))+
-        Math.pow(guiState.mushroom.y+37.5-(maxY+minY)/2,2)/(Math.pow((maxY-minY)/2,2)))
-    if(Math.pow(guiState.mushroom.x+37.5-(maxX+minX)/2,2)/(Math.pow((maxX-minX)/2,2))+
-        Math.pow(guiState.mushroom.y+37.5-(maxY+minY)/2,2)/(Math.pow((maxY-minY)/2,2))<1){
+
+    if(Math.pow(object.x+37.5-(maxX+minX)/2,2)/(Math.pow((maxX-minX)/2,2))+
+        Math.pow(object.y+37.5-(maxY+minY)/2,2)/(Math.pow((maxY-minY)/2,2))<1){
         flag=true
         return true;
     }
-
     return flag
 }
 
@@ -149,18 +131,21 @@ function isFaceTouchMushroom(face,ctx) {
  */
 function drawMarkBar(mark) {
     let canvans=document.getElementById("markbar")
-    // let barctx=canvans.getContext("2d")
     canvans.style.width=guiState.mark+"%"
-    // barctx.fillStyle="#F00"
-    // barctx.fillRect(0,0,guiState.mark,100)
 }
 
 /**
- * 画蘑菇
+ * 画蘑菇/boom
  */
-function drawMushroom(ctx){
-    let img=document.getElementById("img")
-    ctx.drawImage(img,guiState.mushroom.x,guiState.mushroom.y,guiState.mushroom.w,guiState.mushroom.h)
+function drawObject(ctx,object){
+    let img
+    if(object==guiState.mushroom){
+        img=document.getElementById("img")
+    }
+    else if(object==guiState.boom){
+        img=document.getElementById("boom")
+    }
+    ctx.drawImage(img,object.x,object.y,object.w,object.h)
 }
 
 /**
@@ -201,16 +186,14 @@ function interactions(webcam) {
     //获得ctx内容
     let ctx = canvas.getContext('2d')
 
-
-    //蘑菇生成——基础版
-    // let positionX=guiState.canvas.width*0.25
-    // let positionY=guiState.canvas.height*0.6
     //蘑菇生成——优化版（待完善）
-    let positionX=guiState.canvas.width*(0.35+Math.random()*0.4)
-    let positionY=guiState.canvas.height*0.2
+    let positionX=guiState.canvas.width*(0.25+Math.random()*0.5)
+    let positionY=guiState.canvas.height*0.15
     let tempY=positionY
-
-
+    //炸弹生成
+    let boomPositionX=guiState.canvas.width*(0.25+Math.random()*0.5)
+    let boomPositionY=guiState.canvas.height*0.15
+    let currentY=boomPositionY
 
 
     async function detectFaceAndDoInteractions() {
@@ -236,7 +219,6 @@ function interactions(webcam) {
             ctx.drawImage(webcam,0,0,guiState.canvas.width,guiState.canvas.height)
         }
 
-
         //Debug用 画出人脸边缘框
         // if (face!=null){
         //     const landmarks = face.landmarks
@@ -247,11 +229,16 @@ function interactions(webcam) {
         //     // })
         // }
 
-
         tempY+=guiState.detaY
-        guiState.mushroom=createMushroom(positionX,tempY,75,75)
+        guiState.mushroom=createObject(positionX,tempY,75,75)
         // drawMushroom(ctx)
 
+        //随机生成boom
+        if(Math.random()<2){
+            currentY+=guiState.detaY
+            guiState.boom=createObject(boomPositionX,currentY,75,75)
+            //drawObject(ctx,guiState.boom)
+        }
         //draw mark line
         //画出得分条
         drawMarkBar(guiState.mark)
@@ -268,12 +255,10 @@ function interactions(webcam) {
             if (guiState.mushroom){
                 //4.if touch mushroom
                 //如果脸部框接触到蘑菇
-                if (isFaceTouchMushroom(face,ctx)){
-
+                if (isFaceTouchObject(face,ctx,guiState.mushroom)){
                     //4.1 change mark
                     //修改得分
                     guiState.mark+=5
-                    console.log(guiState.mark.toString())
                     document.getElementById("mark").innerHTML="得分："+guiState.mark;
                     //4.2 remove mushroom
 
@@ -283,14 +268,12 @@ function interactions(webcam) {
                         y:positionY
                     }
 
-
-
                     positionX=guiState.canvas.width*(0.15+Math.random()*0.6)
                     positionY=guiState.canvas.height*0.15
                     tempY=positionY
                     tempY+=guiState.detaY
-                    guiState.mushroom=createMushroom(positionX,tempY,75,75)
-                    drawMushroom(ctx)
+                    guiState.mushroom=createObject(positionX,tempY,75,75)
+                    drawObject(ctx,guiState.mushroom)
                 }
                 //4.else
                 //如果没接触蘑菇
@@ -299,15 +282,15 @@ function interactions(webcam) {
                     //原有位置重绘蘑菇
                     tempY+=guiState.detaY
                     if(tempY<guiState.canvas.height){
-                        guiState.mushroom=createMushroom(positionX,tempY,75,75)
-                        drawMushroom(ctx)
+                        guiState.mushroom=createObject(positionX,tempY,75,75)
+                        drawObject(ctx,guiState.mushroom)
                     }else {
                         positionX=guiState.canvas.width*(0.15+Math.random()*0.6)
                         positionY=guiState.canvas.height*0.15
                         tempY=positionY
                         tempY+=guiState.detaY
-                        guiState.mushroom=createMushroom(positionX,tempY,75,75)
-                        drawMushroom(ctx)
+                        guiState.mushroom=createObject(positionX,tempY,75,75)
+                        drawObject(ctx,guiState.mushroom)
                     }
 
                 }
@@ -321,7 +304,51 @@ function interactions(webcam) {
             //     // drawMushroom(ctx)
             // }
 
+            //如果boom存在
+            if (guiState.boom){
+                //4.if touch boom
+                //如果脸部框接触到boom
+                if (isFaceTouchObject(face,ctx,guiState.boom)){
+                    //4.1 change mark
+                    //修改得分
+                    guiState.mark-=5
+                    document.getElementById("mark").innerHTML="得分："+guiState.mark;
+                    //4.2 remove mushroom
 
+                    //画nice
+                    printHeartbroke = {
+                        x:guiState.webcam.width*0.45,
+                        y:guiState.webcam.height*0.8
+                    }
+
+                    guiState.boom=null
+                    boomPositionX=guiState.canvas.width*(0.25+Math.random()*0.5)
+                    boomPositionY=guiState.canvas.height*0.15
+                    currentY=boomPositionY
+                    // currentY+=guiState.detaY
+                    // guiState.boom=createObject(boomPositionX,currentY,75,75)
+                    // drawObject(ctx,guiState.boom)
+                }
+                //4.else
+                //如果没接触boom
+                else {
+                    //keep mushroom
+                    //原有位置重绘蘑菇
+                    currentY+=guiState.detaY
+                    if(currentY<guiState.canvas.height){
+                        guiState.boom=createObject(boomPositionX,currentY,75,75)
+                        drawObject(ctx,guiState.boom)
+                    }else {
+                        boomPositionX=guiState.canvas.width*(0.25+Math.random()*0.5)
+                        boomPositionY=guiState.canvas.height*0.15
+                        currentY=boomPositionY
+                        currentY+=guiState.detaY
+                        guiState.boom=createObject(boomPositionX,currentY,75,75)
+                        drawObject(ctx,guiState.boom)
+                    }
+                }
+
+            }
         }
 
         ctx.restore();
@@ -329,6 +356,11 @@ function interactions(webcam) {
         let nice=document.getElementById("nice")
         if (printNice!=null){
             ctx.drawImage(nice,printNice.x,printNice.y,300,100)
+        }
+
+        let heartbroke=document.getElementById("heartbroke")
+        if (printHeartbroke!=null){
+            ctx.drawImage(heartbroke,printHeartbroke.x,printHeartbroke.y,100,100)
         }
 
         successBox()
@@ -340,6 +372,7 @@ function interactions(webcam) {
 
     setInterval(function () {
         printNice = null;
+        printHeartbroke=null;
     },1000)
 
     detectFaceAndDoInteractions()

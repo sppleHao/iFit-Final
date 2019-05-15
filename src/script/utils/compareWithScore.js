@@ -142,7 +142,7 @@ function getAngleSimilarityScores(cameraPoseKp,videoPoseKp,cameraPoseAngleDegree
         }
         else {
             //get min score of joint
-            let similarity = 1/(1+Math.exp(Math.abs(cameraPoseAngleDegrees[angleIndex] - videoPoseAngleDegrees[angleIndex])/15));
+            let similarity = 1/(1+Math.exp(Math.abs(cameraPoseAngleDegrees[angleIndex] - videoPoseAngleDegrees[angleIndex])/20));
             let meanConfidence = math.median(scores)
             angelSimilarityScores.push(similarity)
             angelSimilarityConfidence.push(meanConfidence)
@@ -433,5 +433,16 @@ export class compareOutput{
     }
     getAngleSimilarityScores(){
         return this.angleSimilarityScores
+    }
+    getAngelStateCompareTwoPose(angleIndex){
+        let cameraAngelDegeree = this.cameraAngleDegrees[angleIndex];
+        let videoAngelDegeree = this.compareAngleDegrees[angleIndex];
+
+        if (videoAngelDegeree<cameraAngelDegeree){
+            return 0;
+        }
+        else {
+            return 1;
+        }
     }
 }

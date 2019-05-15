@@ -287,34 +287,45 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
                 let result = comparePoseWithVideoPoses(pose,comparePoses,guiState.confidence.compareThreshold)
 
-                font.innerText = result.getPoseSimilarityScore()
+                if (result!=null){
 
-                if (guiState.output.showPoints) {
-                    let jointScores =result.getJointSimilarityScores();
-                    let mask = []
-                    for (let i=0;i<jointScores.length;i++){
-                        if (jointScores[i]>0&&jointScores[i]<guiState.confidence.JointCompareThreshold) {
-                            mask.push(true)
+                    let score = result.getPoseSimilarityScore()
+
+                    font.innerText = score.toString()
+
+                    partMarks.push(score)
+
+                    if (guiState.output.showPoints) {
+                        let jointScores =result.getJointSimilarityScores();
+                        let mask = []
+                        for (let i=0;i<jointScores.length;i++){
+                            if (jointScores[i]>0&&jointScores[i]<guiState.confidence.JointCompareThreshold) {
+                                mask.push(true)
+                            }
+                            else {
+                                mask.push(false)
+                            }
                         }
-                        else {
-                            mask.push(false)
-                        }
+                        drawKeypointsWithMask(pose.keypoints,cctx,mask,'red',5)
                     }
-                    drawKeypointsWithMask(pose.keypoints,cctx,mask,'red',5)
+
+                    //draw low confidence angels
+                    if (guiState.output.showSkeleton){
+                        let angelSimilarityScores = result.getAngleSimilarityScores();
+                        let angelArray = []
+                        for (let i=0;i<angelSimilarityScores.length;i++){
+                            if (angelSimilarityScores[i]>0&&angelSimilarityScores[i]<guiState.confidence.AngleCompareThreshold) {
+                                angelArray.push(i)
+                            }
+                        }
+                        let angleLowConfidenceJointMask = angelArrayToJointMask(angelArray);
+                        drawSkeletonWithMask(pose.keypoints,cctx,angleLowConfidenceJointMask,'orange',4)
+                    }
+                }
+                else {
+                    font.innerText = '结果运算中...'
                 }
 
-                //draw low confidence angels
-                if (guiState.output.showSkeleton){
-                    let angelSimilarityScores = result.getAngleSimilarityScores();
-                    let angelArray = []
-                    for (let i=0;i<angelSimilarityScores.length;i++){
-                        if (angelSimilarityScores[i]>0&&angelSimilarityScores[i]<guiState.confidence.AngleCompareThreshold) {
-                            angelArray.push(i)
-                        }
-                    }
-                    let angleLowConfidenceJointMask = angelArrayToJointMask(angelArray);
-                    drawSkeletonWithMask(pose.keypoints,cctx,angleLowConfidenceJointMask,'orange',4)
-                }
 
             })
 
@@ -343,24 +354,24 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
         }
         // console.log(totalMark)
         //interaction
-        if (totalMark>0.45){
+        if (totalMark>0.4){
             //perfect
             mark.innerText = 'Perfect';
             label.name = 'perfect'
             randomLabelPositon();
         }
-        else if (totalMark>0.35){
+        else if (totalMark>0.30){
             //good
             mark.innerText =  'Good';
             label.name = 'good'
             randomLabelPositon();
         }
-        else if (totalMark>0.2){
+        else if (totalMark>0.25){
             //normal
             label.name = ''
             mark.innerText =  'Normal';
         }
-        else if (totalMark<0.1){
+        else if (totalMark<0.2){
             //bad
             label.name = ''
             mark.innerText = 'Bad';

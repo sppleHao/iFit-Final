@@ -9,6 +9,7 @@ import {getCameraList,loadCamera} from "./utils/camera";
 import {getFrontUrl} from "./utils/config";
 import {compareTwoPoseWithScores} from "./utils/compareWithScore";
 import {angelArrayToJointMask} from "./utils/utils";
+import {angelVoice, simpleVoice} from "./utils/voice";
 
 //DEBUG settings
 let DEBUG = 1
@@ -256,8 +257,20 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                             angelArray.push(i)
                         }
                     }
+
+                    // font.innerText = angelArray.toString() + '未通过'
                     let angleLowConfidenceJointMask = angelArrayToJointMask(angelArray);
+                    if (angelArray.length>0){
+                        let angelIndex = angelArray[angelArray.length-1];
+                        let angelState = result.getAngelStateCompareTwoPose(angelIndex);
+                        guiState.lowConfidenceAngel = {index:angelIndex,state:angelState};
+                    }
                     drawSkeletonWithMask(pose.keypoints,cctx,angleLowConfidenceJointMask,'orange',4)
+                }
+
+                if (isPass){
+                    guiState.lowConfidenceAngel = null
+                    // font.innerText = '通过'
                 }
 
                 if (isPass&&videoConfig.videoState!='ended'){
@@ -269,6 +282,32 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
             })
 
         }
+        else {
+            //draw canvas
+            cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+            vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+            poses.push(pose)
+            if (guiState.output.showVideo){
+                if (guiState.output.flipHorizontal) {
+                    cctx.save()
+                    cctx.scale(-1, 1)
+                    cctx.translate(-videoConfig.width, 0)
+                    cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                    cctx.restore()
+                }
+                else {
+                    cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                    cctx.restore()
+                }
+
+
+                vctx.save()
+                // vctx.scale(-1, 1)
+                // vctx.translate(-videoConfig.width, 0)
+                vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
+                vctx.restore()
+            }
+        }
 
         //get fps
         stats.update()
@@ -277,6 +316,25 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
         requestAnimationFrame(poseDetectionFrame)
 
     }
+
+    let voice = setInterval(()=>{
+        if (videoConfig.videoState!='play'){
+
+            //if read (5s interval)
+            if (guiState.noPassTime==5) {
+                if (guiState.lowConfidenceAngel != null) {
+                    angelVoice(guiState.lowConfidenceAngel.index, guiState.lowConfidenceAngel.state)
+                    guiState.noPassTime=1;
+                }
+                else{
+
+                }
+            }
+            else {
+                guiState.noPassTime++;
+            }
+        }
+    },1000)
 
     stats.end()
 
@@ -323,6 +381,8 @@ const guiState = {
     network:{
         usePoseNet:false
     },
+    noPassTime:1,
+    lowConfidenceAngel:null,
     deactivateArray:[]
 }
 
