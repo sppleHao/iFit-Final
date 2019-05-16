@@ -155,160 +155,321 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
         //begin fps
         stats.begin()
 
-        //get the pose
-        if (net){
+        if (guiState.personDetection.open){
+            //get the pose
+            if (net){
 
-            // console.time('poseTime')
+                // console.time('poseTime')
+                let poses =[]
+                let pose = await net.estimateSinglePose(camera, guiState.output.flipHorizontal)
 
-            let poses =[]
-            let pose = await net.estimateSinglePose(camera, guiState.output.flipHorizontal)
+                // console.timeEnd('poseTime')
 
-            // console.timeEnd('poseTime')
-
-            if (DEBUG){
-                console.log('Estimate...')
-                console.log(pose)
-            }
-
-            //get mask
-            let confidenceMask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
-            let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
-            pose.confidenceMask = confidenceMask
-            pose.deactivateMask = deactivateMask
-
-
-            if (DEBUG){
-                console.log('afterFilter...')
-                console.log(pose)
-            }
-
-            //draw canvas
-            cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
-            vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
-            poses.push(pose)
-            if (guiState.output.showVideo){
-                if (guiState.output.flipHorizontal) {
-                    cctx.save()
-                    cctx.scale(-1, 1)
-                    cctx.translate(-videoConfig.width, 0)
-                    cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
-                    cctx.restore()
-                }
-                else {
-                    cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
-                    cctx.restore()
+                if (DEBUG){
+                    console.log('Estimate...')
+                    console.log(pose)
                 }
 
+                //get mask
+                let confidenceMask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
+                let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
+                pose.confidenceMask = confidenceMask
+                pose.deactivateMask = deactivateMask
 
-                vctx.save()
-                // vctx.scale(-1, 1)
-                // vctx.translate(-videoConfig.width, 0)
-                vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
-                vctx.restore()
-            }
 
-            //get compared poss
-            poses.forEach((pose)=>{
-                //get compare poses (0-1seconds)
-                //todo
-                let [newIndex , comparePoses] =getComparedPose(pose,video,poseFile,startIndex,trainingFramePerSecond,deactivateMask)
-                startIndex = newIndex
-
-                let currentMask = andMask(pose.confidenceMask,pose.deactivateMask)
-
-                if (guiState.output.showPoints){
-                    drawKeypointsWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
-                    drawKeypointsWithMask(pose.keypoints,cctx,currentMask)
-                }
-                if (guiState.output.showSkeleton){
-                    drawSkeletonWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
-                    drawSkeletonWithMask(pose.keypoints,cctx,currentMask)
+                if (DEBUG){
+                    console.log('afterFilter...')
+                    console.log(pose)
                 }
 
-                console.log(comparePoses)
-
-                let result = comparePoseWithVideoPoses(pose,comparePoses,guiState.confidence.minPoseConfidence);
-
-                let isPass = true;
-
-                //draw low confidence joint
-                if (guiState.output.showPoints) {
-                    let jointScores =result.getJointSimilarityScores();
-                    let mask = []
-                    for (let i=0;i<jointScores.length;i++){
-                        if (jointScores[i]>0&&jointScores[i]<guiState.confidence.JointCompareThreshold) {
-                            isPass = false
-                            mask.push(true)
-                        }
-                        else {
-                            mask.push(false)
-                        }
+                //draw canvas
+                cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+                vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+                poses.push(pose)
+                if (guiState.output.showVideo){
+                    if (guiState.output.flipHorizontal) {
+                        cctx.save()
+                        cctx.scale(-1, 1)
+                        cctx.translate(-videoConfig.width, 0)
+                        cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                        cctx.restore()
                     }
-                    drawKeypointsWithMask(pose.keypoints,cctx,mask,'red',8)
-                }
-
-                //draw low confidence angels
-                if (guiState.output.showSkeleton){
-                    let angelSimilarityScores = result.getAngleSimilarityScores();
-                    let angelArray = []
-                    for (let i=0;i<angelSimilarityScores.length;i++){
-                        if (angelSimilarityScores[i]>0&&angelSimilarityScores[i]<guiState.confidence.AngleCompareThreshold) {
-                            isPass = false
-                            angelArray.push(i)
-                        }
+                    else {
+                        cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                        cctx.restore()
                     }
 
-                    // font.innerText = angelArray.toString() + '未通过'
-                    let angleLowConfidenceJointMask = angelArrayToJointMask(angelArray);
-                    if (angelArray.length>0){
-                        let angelIndex = angelArray[angelArray.length-1];
-                        let angelState = result.getAngelStateCompareTwoPose(angelIndex);
-                        guiState.lowConfidenceAngel = {index:angelIndex,state:angelState};
+
+                    vctx.save()
+                    // vctx.scale(-1, 1)
+                    // vctx.translate(-videoConfig.width, 0)
+                    vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
+                    vctx.restore()
+                }
+
+                //get compared poss
+                poses.forEach((pose)=>{
+                    //get compare poses (0-1seconds)
+                    //todo
+                    let [newIndex , comparePoses] =getComparedPose(pose,video,poseFile,startIndex,trainingFramePerSecond,deactivateMask)
+                    startIndex = newIndex
+
+                    let currentMask = andMask(pose.confidenceMask,pose.deactivateMask)
+
+                    if (guiState.output.showPoints){
+                        drawKeypointsWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                        drawKeypointsWithMask(pose.keypoints,cctx,currentMask)
                     }
-                    let mask  = andMask(angleLowConfidenceJointMask,currentMask)
-                    drawSkeletonWithMask(pose.keypoints,cctx,mask,'orange')
-                }
+                    if (guiState.output.showSkeleton){
+                        drawSkeletonWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                        drawSkeletonWithMask(pose.keypoints,cctx,currentMask)
+                    }
 
-                if (isPass){
-                    guiState.lowConfidenceAngel = null
-                    // font.innerText = '通过'
-                }
+                    console.log(comparePoses)
 
-                if (isPass&&videoConfig.videoState!='ended'){
-                    video.play()
-                }
-                else {
-                    video.pause()
-                }
-            })
+                    let result = comparePoseWithVideoPoses(pose,comparePoses,guiState.confidence.minPoseConfidence);
 
+                    let isPass = true;
+
+                    //draw low confidence joint
+                    if (guiState.output.showPoints) {
+                        let jointScores =result.getJointSimilarityScores();
+                        let mask = []
+                        for (let i=0;i<jointScores.length;i++){
+                            if (jointScores[i]>0&&jointScores[i]<guiState.confidence.JointCompareThreshold) {
+                                isPass = false
+                                mask.push(true)
+                            }
+                            else {
+                                mask.push(false)
+                            }
+                        }
+                        drawKeypointsWithMask(pose.keypoints,cctx,mask,'red',8)
+                    }
+
+                    //draw low confidence angels
+                    if (guiState.output.showSkeleton){
+                        let angelSimilarityScores = result.getAngleSimilarityScores();
+                        let angelArray = []
+                        for (let i=0;i<angelSimilarityScores.length;i++){
+                            if (angelSimilarityScores[i]>0&&angelSimilarityScores[i]<guiState.confidence.AngleCompareThreshold) {
+                                isPass = false
+                                angelArray.push(i)
+                            }
+                        }
+
+                        // font.innerText = angelArray.toString() + '未通过'
+                        let angleLowConfidenceJointMask = angelArrayToJointMask(angelArray);
+                        if (angelArray.length>0){
+                            let angelIndex = angelArray[angelArray.length-1];
+                            let angelState = result.getAngelStateCompareTwoPose(angelIndex);
+                            guiState.lowConfidenceAngel = {index:angelIndex,state:angelState};
+                        }
+                        let mask  = andMask(angleLowConfidenceJointMask,currentMask)
+                        drawSkeletonWithMask(pose.keypoints,cctx,mask,'orange')
+                    }
+
+                    if (isPass){
+                        guiState.lowConfidenceAngel = null
+                        // font.innerText = '通过'
+                    }
+
+                    if (isPass&&videoConfig.videoState!='ended'){
+                        video.play()
+                    }
+                    else {
+                        video.pause()
+                    }
+                })
+
+            }
+            else {
+                //draw canvas
+                cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+                vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+                poses.push(pose)
+                if (guiState.output.showVideo){
+                    if (guiState.output.flipHorizontal) {
+                        cctx.save()
+                        cctx.scale(-1, 1)
+                        cctx.translate(-videoConfig.width, 0)
+                        cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                        cctx.restore()
+                    }
+                    else {
+                        cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                        cctx.restore()
+                    }
+
+
+                    vctx.save()
+                    // vctx.scale(-1, 1)
+                    // vctx.translate(-videoConfig.width, 0)
+                    vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
+                    vctx.restore()
+                }
+            }
         }
         else {
-            //draw canvas
-            cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
-            vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
-            poses.push(pose)
-            if (guiState.output.showVideo){
-                if (guiState.output.flipHorizontal) {
-                    cctx.save()
-                    cctx.scale(-1, 1)
-                    cctx.translate(-videoConfig.width, 0)
-                    cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
-                    cctx.restore()
-                }
-                else {
-                    cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
-                    cctx.restore()
+            //get the pose
+            if (net){
+
+                // console.time('poseTime')
+                let poses =[]
+                let pose = await net.estimateSinglePose(camera, guiState.output.flipHorizontal)
+
+                // console.timeEnd('poseTime')
+
+                if (DEBUG){
+                    console.log('Estimate...')
+                    console.log(pose)
                 }
 
+                //get mask
+                let confidenceMask = getConfidenceMask(pose.keypoints,guiState.confidence.minPoseConfidence);
+                let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
+                pose.confidenceMask = confidenceMask
+                pose.deactivateMask = deactivateMask
 
-                vctx.save()
-                // vctx.scale(-1, 1)
-                // vctx.translate(-videoConfig.width, 0)
-                vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
-                vctx.restore()
+
+                if (DEBUG){
+                    console.log('afterFilter...')
+                    console.log(pose)
+                }
+
+                //draw canvas
+                cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+                vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+                poses.push(pose)
+                if (guiState.output.showVideo){
+                    if (guiState.output.flipHorizontal) {
+                        cctx.save()
+                        cctx.scale(-1, 1)
+                        cctx.translate(-videoConfig.width, 0)
+                        cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                        cctx.restore()
+                    }
+                    else {
+                        cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                        cctx.restore()
+                    }
+
+
+                    vctx.save()
+                    // vctx.scale(-1, 1)
+                    // vctx.translate(-videoConfig.width, 0)
+                    vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
+                    vctx.restore()
+                }
+
+                //get compared poss
+                poses.forEach((pose)=>{
+                    //get compare poses (0-1seconds)
+                    //todo
+                    let [newIndex , comparePoses] =getComparedPose(pose,video,poseFile,startIndex,trainingFramePerSecond,deactivateMask)
+                    startIndex = newIndex
+
+                    let currentMask = andMask(pose.confidenceMask,pose.deactivateMask)
+
+                    if (guiState.output.showPoints){
+                        drawKeypointsWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                        drawKeypointsWithMask(pose.keypoints,cctx,currentMask)
+                    }
+                    if (guiState.output.showSkeleton){
+                        drawSkeletonWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                        drawSkeletonWithMask(pose.keypoints,cctx,currentMask)
+                    }
+                    if (guiState.output.drawBoundingBox){
+                        //画一个推荐区域的牌子
+                        cctx.strokeRect(videoConfig.width*0.1,videoConfig.height*0.1,videoConfig.width*0.8,videoConfig.height*0.8)
+                    }
+
+                    console.log(comparePoses)
+
+                    let result = comparePoseWithVideoPoses(pose,comparePoses,guiState.confidence.minPoseConfidence);
+
+                    let isPass = true;
+
+                    //draw low confidence joint
+                    if (guiState.output.showPoints) {
+                        let jointScores =result.getJointSimilarityScores();
+                        let mask = []
+                        for (let i=0;i<jointScores.length;i++){
+                            if (jointScores[i]>0&&jointScores[i]<guiState.confidence.JointCompareThreshold) {
+                                isPass = false
+                                mask.push(true)
+                            }
+                            else {
+                                mask.push(false)
+                            }
+                        }
+                        drawKeypointsWithMask(pose.keypoints,cctx,mask,'red',8)
+                    }
+
+                    //draw low confidence angels
+                    if (guiState.output.showSkeleton){
+                        let angelSimilarityScores = result.getAngleSimilarityScores();
+                        let angelArray = []
+                        for (let i=0;i<angelSimilarityScores.length;i++){
+                            if (angelSimilarityScores[i]>0&&angelSimilarityScores[i]<guiState.confidence.AngleCompareThreshold) {
+                                isPass = false
+                                angelArray.push(i)
+                            }
+                        }
+
+                        // font.innerText = angelArray.toString() + '未通过'
+                        let angleLowConfidenceJointMask = angelArrayToJointMask(angelArray);
+                        if (angelArray.length>0){
+                            let angelIndex = angelArray[angelArray.length-1];
+                            let angelState = result.getAngelStateCompareTwoPose(angelIndex);
+                            guiState.lowConfidenceAngel = {index:angelIndex,state:angelState};
+                        }
+                        let mask  = andMask(angleLowConfidenceJointMask,currentMask)
+                        drawSkeletonWithMask(pose.keypoints,cctx,mask,'orange')
+                    }
+
+                    if (isPass){
+                        guiState.lowConfidenceAngel = null
+                        // font.innerText = '通过'
+                    }
+
+                    if (isPass&&videoConfig.videoState!='ended'){
+                        video.play()
+                    }
+                    else {
+                        video.pause()
+                    }
+                })
+
+            }
+            else {
+                //draw canvas
+                cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+                vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+                poses.push(pose)
+                if (guiState.output.showVideo){
+                    if (guiState.output.flipHorizontal) {
+                        cctx.save()
+                        cctx.scale(-1, 1)
+                        cctx.translate(-videoConfig.width, 0)
+                        cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                        cctx.restore()
+                    }
+                    else {
+                        cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                        cctx.restore()
+                    }
+
+
+                    vctx.save()
+                    // vctx.scale(-1, 1)
+                    // vctx.translate(-videoConfig.width, 0)
+                    vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
+                    vctx.restore()
+                }
             }
         }
+
 
         //get fps
         stats.update()
@@ -374,17 +535,20 @@ const guiState = {
         showVideo:true,
         showSkeleton:true,
         showPoints:true,
-        flipHorizontal:true
+        flipHorizontal:true,
+        drawBoundingBox:true
     },
     camera:{
         deviceName:null
     },
-    network:{
-        usePoseNet:false
-    },
+    net:'Hourglass',
     noPassTime:1,
     lowConfidenceAngel:null,
-    deactivateArray:[]
+    deactivateArray:[],
+    personDetection:{
+        open:false,
+        interval:300,
+    },
 }
 
 const url = getFrontUrl()
@@ -431,6 +595,13 @@ function setupGui(videoList,cameras) {
     const gui = new dat.GUI({width:300});
     gui.domElement.style = 'position:absolute;top:50px;right:0px';
 
+    let net = gui.addFolder('NetWork')
+    const netController = net.add(guiState,'net',{'iFitNet-Fast':'HRNet','iFitNet':'Hourglass'})
+
+    netController.onChange(function (network) {
+        guiState.changeNetwork = network;
+    })
+
     let videos = gui.addFolder('Video Source Controller')
     const videoController = videos.add(guiState.video,'name',videoList)
 
@@ -474,6 +645,7 @@ function setupGui(videoList,cameras) {
     output.add(guiState.output, 'showSkeleton');
     output.add(guiState.output, 'showPoints');
     output.add(guiState.output,'flipHorizontal')
+    output.add(guiState.output,'drawBoundingBox')
 
     //camera control
     let cameraNames = [];
@@ -489,6 +661,13 @@ function setupGui(videoList,cameras) {
     cameraController.onChange(function(name) {
         guiState.changeCameraDevice = cameraIds[cameraNames.indexOf(name)];
     });
+
+    let person = gui.addFolder('PersonDetection')
+    person.add(guiState.personDetection, 'open')
+    let interval = person.add(guiState.personDetection, 'interval',100,300)
+    interval.onChange(function (number) {
+        guiState.changePersonDetectionInterval = parseInt(number)
+    })
 }
 
 /**
@@ -514,7 +693,7 @@ async function loadPoseFile(){
 async function runDemo(){
 
     //load pose model
-    let net =await loadModel.load()
+    let net =await loadModel.load(guiState.net)
 
     //get camera list
     let cameras = await getCameraList()

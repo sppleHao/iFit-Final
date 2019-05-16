@@ -8,16 +8,15 @@ const url = getFrontUrl();
 const hgUrl =`${url}/static/iFitNet_Hourglass/model.json`
 const hrUrl =`${url}/static/iFitNet_HR/model.json`
 
-export async function load(){
+export async function load(modelType = "HRNet"){
     try {
-        let modelType = getIFitNetType();
         if (modelType=='Hourglass') {
-            console.log('iFitNet:load hourglass model ...')
+            console.log('iFitNet:load model ...')
             const model = await tf.loadModel(hgUrl)
             return new IFitNetHourglass(model)
         }
         else if(modelType=='HRNet'){
-            console.log('iFitNet:load hr model ...')
+            console.log('iFitNet:load fast model ...')
             const model = await tf.loadModel(hrUrl)
             return new IFitNetHR(model)
         }

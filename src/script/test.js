@@ -10,6 +10,7 @@ import {getCameraList,loadCamera} from "./utils/camera";
 import {compareTwoPoseWithScores,compareOutput} from "./utils/compareWithScore";
 import {getFrontUrl} from "./utils/config";
 import {angelArrayToJointMask} from "./utils/utils";
+import * as cocoSsd from "@tensorflow-models/coco-ssd/dist/index";
 
 //DEBUG settings
 let DEBUG = 1
@@ -386,6 +387,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 }
 
 const guiState = {
+    net:'HRNet',
     video:{
         name:'out2.mp4'
     },
@@ -549,8 +551,11 @@ async function loadPoseFile(){
 
 async function runDemo(){
 
+    //load ssd model
+    let ssd = await cocoSsd.load()
+
     //load pose model
-    let net =await loadModel.load()
+    let net =await loadModel.load(guiState.net)
 
     //get camera list
     let cameras = await getCameraList()
@@ -608,7 +613,7 @@ async function runDemo(){
         setupGui(videoList,cameras)
         setupFPS()
 
-        detectPoseInRealTime(net,video,camera,poseFile)
+        detectPoseInRealTime(ssd,net,video,camera,poseFile)
     }
 }
 

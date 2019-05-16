@@ -262,6 +262,7 @@ function detectPoseInRealTime(net,model,camera,poseFile) {
 }
 
 const guiState = {
+    net:'HRNet',
     video:{
         name:'model1.mov'
     },

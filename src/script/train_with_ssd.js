@@ -95,6 +95,12 @@ function detectPoseInRealTime(iFitNet,ssd,video) {
             guiState.changePersonDetectionInterval = null
         }
 
+        if (guiState.changeNetwork){
+            iFitNet.dispose()
+            iFitNet = await loadModel.load(guiState.changeNetwork)
+            guiState.changeNetwork = null
+        }
+
         stats.begin()
 
         let poses =[]
@@ -260,6 +266,7 @@ function sendPoseJsonToBackUseFormData(poses) {
 }
 
 const guiState = {
+    net:'HRNet',
     person:[],
     video:{
         name:'out1.mp4'
@@ -332,6 +339,13 @@ function setupGui(videoList) {
 
     const gui = new dat.GUI({width:300})
 
+    let net = gui.addFolder('NetWork')
+    const netController = net.add(guiState,'net',{'iFitNet-Fast':'HRNet','iFitNet':'Hourglass'})
+
+    netController.onChange(function (network) {
+        guiState.changeNetwork = network;
+    })
+
     let videos = gui.addFolder('Video Source Controller')
     const videoController = videos.add(guiState.video,'name',videoList)
 
@@ -389,7 +403,7 @@ async function runDemo(){
     let ssd = await cocoSsd.load()
 
     //load pose model
-    let iFitNet =await loadModel.load()
+    let iFitNet =await loadModel.load('HRNet')
 
     //load trained videos
     let videoList = await loadVideoList(videoConfig)
