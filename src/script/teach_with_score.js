@@ -214,7 +214,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                 let [newIndex , comparePoses] =getComparedPose(pose,video,poseFile,startIndex,trainingFramePerSecond,deactivateMask)
                 startIndex = newIndex
 
-                let currentMask = andMask(pose.confidenceMask,pose.confidenceMask)
+                let currentMask = andMask(pose.confidenceMask,pose.deactivateMask)
 
                 if (guiState.output.showPoints){
                     drawKeypointsWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
@@ -244,7 +244,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                             mask.push(false)
                         }
                     }
-                    drawKeypointsWithMask(pose.keypoints,cctx,mask,'red',5)
+                    drawKeypointsWithMask(pose.keypoints,cctx,mask,'red',8)
                 }
 
                 //draw low confidence angels
@@ -265,7 +265,8 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                         let angelState = result.getAngelStateCompareTwoPose(angelIndex);
                         guiState.lowConfidenceAngel = {index:angelIndex,state:angelState};
                     }
-                    drawSkeletonWithMask(pose.keypoints,cctx,angleLowConfidenceJointMask,'orange',4)
+                    let mask  = andMask(angleLowConfidenceJointMask,currentMask)
+                    drawSkeletonWithMask(pose.keypoints,cctx,mask,'orange')
                 }
 
                 if (isPass){
@@ -428,7 +429,7 @@ function setupGui(videoList,cameras) {
 
     //gui state
     const gui = new dat.GUI({width:300});
-    gui.domElement.style = 'position:absolute;top:200px;right:0px';
+    gui.domElement.style = 'position:absolute;top:50px;right:0px';
 
     let videos = gui.addFolder('Video Source Controller')
     const videoController = videos.add(guiState.video,'name',videoList)
@@ -446,8 +447,15 @@ function setupGui(videoList,cameras) {
     let joints = gui.addFolder('Joint Controller');
     for (let k in guiState.joints){
         let c = joints.add(guiState.joints,k.toString());
+        let index = Joints.indexOf(k.toString())
+        if (guiState.joints[k]){
+            guiState.deactivateArray.remove(index)
+        }
+        else {
+            console.log(index)
+            guiState.deactivateArray.push(index)
+        }
         c.onChange(function () {
-            let index = Joints.indexOf(k.toString());
             if (guiState.joints[k]){
                 guiState.deactivateArray.remove(index);
             }

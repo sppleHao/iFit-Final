@@ -291,7 +291,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 
                     let score = result.getPoseSimilarityScore()
 
-                    font.innerText = score.toString()
+                    // font.innerText = score.toString()
 
                     partMarks.push(score)
 
@@ -472,7 +472,7 @@ function setupGui(videoList,cameras) {
 
     //gui state
     const gui = new dat.GUI({width:300});
-    gui.domElement.style = 'position:absolute;top:200px;right:0px';
+    gui.domElement.style = 'position:absolute;top:50px;right:0px';
 
     let videos = gui.addFolder('Video Source Controller')
     const videoController = videos.add(guiState.video,'name',videoList)
