@@ -10,6 +10,7 @@ import {getFrontUrl} from "./utils/config";
 import {compareTwoPoseWithScores} from "./utils/compareWithScore";
 import {angelArrayToJointMask} from "./utils/utils";
 import {angelVoice, simpleVoice} from "./utils/voice";
+import * as cocoSsd from "@tensorflow-models/coco-ssd/dist/index";
 
 //DEBUG settings
 let DEBUG = 1
@@ -87,7 +88,6 @@ function comparePoseWithVideoPoses(currentPose,comparedPoses,threshHold){
     let poseSimilarityScores = []
     for (let i=0;i<comparedPoses.length;i++){
         let result = compareTwoPoseWithScores(currentPose,comparedPoses[i],guiState.confidence.lambda)
-        console.log('result',result)
         results.push(result)
         poseSimilarityScores.push(result.getPoseSimilarityScore())
     }
@@ -112,7 +112,7 @@ function setupFPS() {
  * @param camera Video Element
  * @param model
  */
-function detectPoseInRealTime(net,video,camera,poseFile) {
+function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
     let font = document.getElementById('font')
 
     //camera canvas
@@ -122,6 +122,95 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
     //video canvas
     const vcanvas = loadCanvas('voutput',videoConfig.width,videoConfig.height)
     const vctx = vcanvas.getContext('2d');
+
+    const originCanvas = loadCanvas('origin',videoConfig.width,videoConfig.height)
+    const octx = originCanvas.getContext('2d');
+
+    let detection = setInterval(detectPersons,guiState.personDetection.interval)
+
+    let detectionGlobal = setInterval(detectPersonsGlobal,1500)
+
+    async function detectPersons() {
+        // console.time('detect')
+        if (guiState.personDetection.open&&ssd){
+            let objs =await ssd.detect(originCanvas)
+
+            let maxBoxArea = 0;
+            let maxBox = []
+
+            for(let i =0;i<objs.length;i++){
+                const obj = objs[i];
+                if (obj.class=='person'){
+
+                    let [x,y,w,h] = obj.bbox.map(p=>{
+                        return Math.floor(p)
+                    })
+                    let centerX = x + w/2;
+                    let centerY = y + h/2;
+                    let maxSide = w>h ? w:h;
+                    let boxMinX = centerX - maxSide/2 > 0 ? centerX - maxSide/2 : 0 ;
+                    let boxMinY = centerY - maxSide/2 > 0 ? centerY - maxSide/2 : 0 ;
+                    let boxMaxX = centerX + maxSide/2 < videoConfig.width ? centerX + maxSide/2 : videoConfig.width;
+                    let boxMaxY = centerY + maxSide/2 < videoConfig.height ? centerY + maxSide/2 : videoConfig.height;
+                    let boxW = boxMaxX - boxMinX
+                    let boxH = boxMaxY - boxMinY
+                    let boxArea = boxW * boxH
+                    if (boxArea>maxBoxArea){
+                        maxBoxArea = boxArea
+                        maxBox = [boxMinX,boxMinY,boxW,boxH]
+                    }
+
+                }
+
+                if (i==objs.length-1){
+                    guiState.person = maxBox
+                }
+            }
+        }
+
+        // console.timeEnd('detect')
+    }
+
+    async function detectPersonsGlobal() {
+        // console.time('detect')
+        if (!guiState.personDetection.open&&ssd){
+            let objs =await ssd.detect(originCanvas)
+
+            let maxBoxArea = 0;
+            let maxBox = []
+
+            for(let i =0;i<objs.length;i++){
+                const obj = objs[i];
+                if (obj.class=='person'){
+
+                    let [x,y,w,h] = obj.bbox.map(p=>{
+                        return Math.floor(p)
+                    })
+                    let centerX = x + w/2;
+                    let centerY = y + h/2;
+                    let maxSide = w>h ? w:h;
+                    let boxMinX = centerX - maxSide/2 > 0 ? centerX - maxSide/2 : 0 ;
+                    let boxMinY = centerY - maxSide/2 > 0 ? centerY - maxSide/2 : 0 ;
+                    let boxMaxX = centerX + maxSide/2 < videoConfig.width ? centerX + maxSide/2 : videoConfig.width;
+                    let boxMaxY = centerY + maxSide/2 < videoConfig.height ? centerY + maxSide/2 : videoConfig.height;
+                    let boxW = boxMaxX - boxMinX
+                    let boxH = boxMaxY - boxMinY
+                    let boxArea = boxW * boxH
+                    if (boxArea>maxBoxArea){
+                        maxBoxArea = boxArea
+                        maxBox = [boxMinX,boxMinY,boxW,boxH]
+                    }
+
+                }
+
+                if (i==objs.length-1){
+                    guiState.person = maxBox
+                }
+            }
+        }
+
+        // console.timeEnd('detect')
+    }
 
     //config
     let startIndex = 0
@@ -152,18 +241,37 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
             guiState.changeCameraDevice = null
         }
 
+
+        octx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+        if (guiState.output.flipHorizontal){
+            octx.save();
+            octx.scale(-1, 1)
+            octx.translate(-videoConfig.width, 0)
+            octx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+            octx.restore();
+        }
+        else {
+            octx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+            octx.restore()
+        }
+
         //begin fps
-        stats.begin()
+        if (guiState.output.setupFPS){
+            stats.begin()
+        }
 
-        if (guiState.personDetection.open){
-            //get the pose
+        async function cropEstimate() {
             if (net){
+                let box = guiState.person
+                let imData = octx.getImageData(...box)
 
-                // console.time('poseTime')
+                let pose = await net.estimateSinglePose(imData, !guiState.output.flipHorizontal)
+                pose.keypoints.forEach(keypoint=>{
+                    keypoint.position.x += box[0];
+                    keypoint.position.y += box[1];
+                })
+
                 let poses =[]
-                let pose = await net.estimateSinglePose(camera, guiState.output.flipHorizontal)
-
-                // console.timeEnd('poseTime')
 
                 if (DEBUG){
                     console.log('Estimate...')
@@ -175,7 +283,6 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                 let deactivateMask = getDeactivateMask(pose.keypoints,guiState.deactivateArray);
                 pose.confidenceMask = confidenceMask
                 pose.deactivateMask = deactivateMask
-
 
                 if (DEBUG){
                     console.log('afterFilter...')
@@ -224,8 +331,11 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                         drawSkeletonWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
                         drawSkeletonWithMask(pose.keypoints,cctx,currentMask)
                     }
+                    if (guiState.output.drawBoundingBox){
+                        cctx.strokeStyle= 'aqua'
+                        cctx.strokeRect(...box)
+                    }
 
-                    console.log(comparePoses)
 
                     let result = comparePoseWithVideoPoses(pose,comparePoses,guiState.confidence.minPoseConfidence);
 
@@ -274,7 +384,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                         // font.innerText = '通过'
                     }
 
-                    if (isPass&&videoConfig.videoState!='ended'){
+                    if (isPass&&videoConfig.videoState!='ended'&&videoConfig.videoState!='beforeStart'){
                         video.play()
                     }
                     else {
@@ -287,7 +397,6 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                 //draw canvas
                 cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
                 vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
-                poses.push(pose)
                 if (guiState.output.showVideo){
                     if (guiState.output.flipHorizontal) {
                         cctx.save()
@@ -307,11 +416,18 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                     // vctx.translate(-videoConfig.width, 0)
                     vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
                     vctx.restore()
+
+                    if (guiState.output.showPoints){
+                        drawKeypointsWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                    }
+                    if (guiState.output.showSkeleton){
+                        drawSkeletonWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                    }
                 }
             }
         }
-        else {
-            //get the pose
+
+        async function normalEstimate() {
             if (net){
 
                 // console.time('poseTime')
@@ -384,7 +500,6 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                         cctx.strokeRect(videoConfig.width*0.1,videoConfig.height*0.1,videoConfig.width*0.8,videoConfig.height*0.8)
                     }
 
-                    console.log(comparePoses)
 
                     let result = comparePoseWithVideoPoses(pose,comparePoses,guiState.confidence.minPoseConfidence);
 
@@ -446,7 +561,6 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                 //draw canvas
                 cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
                 vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
-                poses.push(pose)
                 if (guiState.output.showVideo){
                     if (guiState.output.flipHorizontal) {
                         cctx.save()
@@ -466,13 +580,94 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                     // vctx.translate(-videoConfig.width, 0)
                     vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
                     vctx.restore()
+
+                    if (guiState.output.showPoints){
+                        drawKeypointsWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                    }
+                    if (guiState.output.showSkeleton){
+                        drawSkeletonWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                    }
                 }
             }
         }
 
+        function IsPersonInCenter(person) {
+            let [boxMinX,boxMinY,boxW,boxH] = person
+            let boxMaxX = boxMinX + boxW
+            let boxMaxY = boxMinY + boxH
+            let boxCX = boxMinX + boxW/2
+            let boxCY = boxMinY + boxH/2
+            if (boxCX>videoConfig.width*0.4&&boxCX<videoConfig.width*0.6&&boxCY>videoConfig.height*0.4&&boxCY<videoConfig.height*0.6){
+                return true
+            }
+            else {
+                return false
+            }
+        }
+
+        async function onlyDrawInCanvas() {
+            //draw canvas
+            cctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+            vctx.clearRect(0, 0, videoConfig.width, videoConfig.height)
+            if (guiState.output.showVideo){
+                if (guiState.output.flipHorizontal) {
+                    cctx.save()
+                    cctx.scale(-1, 1)
+                    cctx.translate(-videoConfig.width, 0)
+                    cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                    cctx.restore()
+                }
+                else {
+                    cctx.drawImage(camera,0,0,videoConfig.width,videoConfig.height)
+                    cctx.restore()
+                }
+
+
+                vctx.save()
+                // vctx.scale(-1, 1)
+                // vctx.translate(-videoConfig.width, 0)
+                vctx.drawImage(video,0,0,videoConfig.width,videoConfig.height)
+                vctx.restore()
+
+                if (guiState.output.showPoints){
+                    drawKeypointsWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                }
+                if (guiState.output.showSkeleton){
+                    drawSkeletonWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
+                }
+            }
+        }
+
+        if (guiState.personDetection.open&&ssd!=null){
+            if (guiState.person.length>0) {
+                let center =IsPersonInCenter(guiState.person)
+                if (!center){
+                    await cropEstimate()
+                }
+                else {
+                    await normalEstimate()
+                }
+            }
+            else {
+                await onlyDrawInCanvas()
+            }
+            //get the pose
+        }
+        else {
+            if (guiState.person.length>0){
+                await normalEstimate()
+            }
+            else {
+                await onlyDrawInCanvas()
+            }
+
+        }
+
 
         //get fps
-        stats.update()
+        if (guiState.output.setupFPS){
+            stats.update()
+        }
 
         DEBUG = 0
         requestAnimationFrame(poseDetectionFrame)
@@ -480,23 +675,32 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
     }
 
     let voice = setInterval(()=>{
-        if (videoConfig.videoState!='play'){
-
+        if (videoConfig.videoState!='play'&&guiState.person.length>0){
             //if read (5s interval)
-            if (guiState.noPassTime==5) {
-                if (guiState.lowConfidenceAngel != null) {
-                    angelVoice(guiState.lowConfidenceAngel.index, guiState.lowConfidenceAngel.state)
-                    guiState.noPassTime=1;
+            if (guiState.lowConfidenceAngel != null) {
+                //no pass
+                if (guiState.noPassTime==5) {
+                    angelVoice(guiState.lowConfidenceAngel.index, guiState.lowConfidenceAngel.state,!guiState.output.flipHorizontal)
+                    guiState.noPassTime=0;
                 }
                 else{
-
+                    guiState.noPassTime++
                 }
+                guiState.passTime = 0
             }
             else {
-                guiState.noPassTime++;
+                //pass
+                if (guiState.passTime==5){
+                    simpleVoice("继续保持")
+                    guiState.passTime = 0
+                }
+                else {
+                    guiState.passTime++
+                }
+                guiState.noPassTime = 0
             }
         }
-    },1000)
+    },1500)
 
     stats.end()
 
@@ -504,8 +708,9 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
 }
 
 const guiState = {
+    person:[],
     video:{
-        name:'out2.mp4'
+        name:'out4.mp4'
     },
     confidence:{
         minPoseConfidence:0.15,
@@ -536,18 +741,20 @@ const guiState = {
         showSkeleton:true,
         showPoints:true,
         flipHorizontal:true,
-        drawBoundingBox:true
+        drawBoundingBox:false,
+        setupFPS:true
     },
     camera:{
         deviceName:null
     },
-    net:'Hourglass',
-    noPassTime:1,
+    net:'HRNet',
+    noPassTime:0,
+    passTime:0,
     lowConfidenceAngel:null,
     deactivateArray:[],
     personDetection:{
         open:false,
-        interval:300,
+        interval:500,
     },
 }
 
@@ -646,6 +853,7 @@ function setupGui(videoList,cameras) {
     output.add(guiState.output, 'showPoints');
     output.add(guiState.output,'flipHorizontal')
     output.add(guiState.output,'drawBoundingBox')
+    output.add(guiState.output,'setupFPS')
 
     //camera control
     let cameraNames = [];
@@ -692,6 +900,9 @@ async function loadPoseFile(){
 
 async function runDemo(){
 
+    //load ssd model
+    let ssd = await cocoSsd.load()
+
     //load pose model
     let net =await loadModel.load(guiState.net)
 
@@ -728,7 +939,7 @@ async function runDemo(){
         setupGui(videoList,cameras)
         setupFPS()
 
-        detectPoseInRealTime(net,video,camera,poseFile)
+        detectPoseInRealTime(ssd,net,video,camera,poseFile)
     }
 }
 

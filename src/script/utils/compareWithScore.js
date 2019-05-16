@@ -230,7 +230,6 @@ function getJointSimilarityScores(cameraPoseKp,videoPoseKp,mask) {
     let videoPoseCenter = getCenterOfPose(videoPoseKp,mask);
 
     let scale =getScaleOfPose(cameraPoseKp,videoPoseKp,mask)
-    console.log(scale,cameraPoseCenter,videoPoseCenter)
 
     for (let i=0;i<count;i++){
         let j1 = cameraPoseKp[i]
@@ -322,8 +321,8 @@ function getPoseSimilarityScore(jointSimilarityScores,jointSimilarityConfidences
     }
 
 
-    console.log(angleSumConfidence,angleSumConfidence)
-    console.log(poseJointSimilarityScore,poseAngelSimilarityScore)
+    // console.log(angleSumConfidence,angleSumConfidence)
+    // console.log(poseJointSimilarityScore,poseAngelSimilarityScore)
 
 
 
@@ -388,7 +387,7 @@ export function compareTwoPoseWithScores(cameraPose,videoPose,lambda){
 
     // console.log(cameraPose)
     let result = computePartSimilarityScores(cameraPose,videoPose,lambda,mask);
-    console.log(result)
+    // console.log(result)
     return result;
 }
 

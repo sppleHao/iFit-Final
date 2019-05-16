@@ -37,6 +37,23 @@ const AngelKeysInChineseInStateOne = [
     '左腿张开'
 ]
 
+const AngelKeysInChineseInStateOneFlip = [
+    '下蹲', //01
+    '下蹲', //23
+    '左臂合拢', //45
+    '左臂不要与肩膀平行', //56
+    '左肩抬高', //6 10
+    '右肩抬高', //10 7
+    '右臂不要与肩膀平行', //7 8
+    '右臂合拢',// 89
+    '盆骨前倾', //1 11
+    '盆骨前倾', //2 12
+    '腰部向左', //11 13
+    '腰部向左', //13 12
+    '左腿合拢', //1 13
+    '右腿张开'
+]
+
 //<
 const AngelKeysInChineseInStateZero = [
     '起立', //01
@@ -55,17 +72,47 @@ const AngelKeysInChineseInStateZero = [
     '左腿合拢'
 ]
 
+//<
+const AngelKeysInChineseInStateZeroFlip = [
+    '起立', //01
+    '起立', //23
+    '左臂伸直', //45
+    '左臂平行于肩', //56
+    '左肩下沉', //6 10
+    '右肩下沉', //10 7
+    '右臂平行于肩', //7 8
+    '右臂伸直',// 89
+    '盆骨后倾', //1 11
+    '盆骨后倾', //2 12
+    '腰部向右', //11 13
+    '腰部向右', //13 12
+    '左腿张开', //1 13
+    '右腿合拢'
+]
+
 const angels = getAngles();
 
-export function angelVoice(angelIndex,state) {
+export function angelVoice(angelIndex,state,flip) {
     // baidu TTS
     let str = ""
 
     if (state==0){
-        str = AngelKeysInChineseInStateZero[angelIndex]
+        if (flip){
+            str = AngelKeysInChineseInStateZero[angelIndex]
+
+        }
+        else {
+            str = AngelKeysInChineseInStateZeroFlip[angelIndex]
+
+        }
     }
     else {
-        str = AngelKeysInChineseInStateOne[angelIndex]
+        if (flip){
+            str = AngelKeysInChineseInStateOneFlip[angelIndex]
+        }
+        else {
+            str = AngelKeysInChineseInStateOne[angelIndex]
+        }
     }
 
 
@@ -75,17 +122,8 @@ export function angelVoice(angelIndex,state) {
     n.play();
 }
 
-export function simpleVoice(state) {
+export function simpleVoice(str) {
     // baidu TTS
-
-    let str =""
-
-    if (state==0){
-        str += '收紧'
-    }
-    else {
-        str += '张开'
-    }
 
     let url = "http://tts.baidu.com/text2audio?lan=zh&ie=UTF-8&text=" + encodeURI(str);
     let n = new Audio(url);

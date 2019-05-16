@@ -7,6 +7,8 @@ export async function loadVideoList(videoConfig) {
     }).done(async function (result) {
         jResult = JSON.parse(result)
         console.log(jResult)
+        document.getElementById('app').style = "display:none"
+        document.getElementById('main').style = "display:block"
     }).fail(function (jqXHR) {
         alert('Error:' + jqXHR.status);
         return []
