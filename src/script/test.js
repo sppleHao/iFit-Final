@@ -174,7 +174,7 @@ function computeFinalMark() {
  * @param camera Video Element
  * @param model
  */
-function detectPoseInRealTime(net,video,camera,poseFile) {
+function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
     let font = document.getElementById('font');
     let mark = document.getElementById('mark');
 
@@ -275,7 +275,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                 let [newIndex , comparePoses] =getComparedPose(pose,video,poseFile,startIndex,trainingFramePerSecond,deactivateMask)
                 startIndex = newIndex
 
-                let currentMask = andMask(pose.confidenceMask,pose.confidenceMask)
+                let currentMask = andMask(pose.confidenceMask,pose.deactivateMask)
 
                 if (guiState.output.showPoints){
                     drawKeypointsWithMask(poseFile[startIndex].keypoints,vctx,poseFile[startIndex].mask)
@@ -310,7 +310,6 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                         drawKeypointsWithMask(pose.keypoints,cctx,mask,'red',5)
                     }
 
-                    //draw low confidence angels
                     if (guiState.output.showSkeleton){
                         let angelSimilarityScores = result.getAngleSimilarityScores();
                         let angelArray = []
@@ -319,8 +318,16 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
                                 angelArray.push(i)
                             }
                         }
+
+                        // font.innerText = angelArray.toString() + '未通过'
                         let angleLowConfidenceJointMask = angelArrayToJointMask(angelArray);
-                        drawSkeletonWithMask(pose.keypoints,cctx,angleLowConfidenceJointMask,'orange',4)
+                        if (angelArray.length>0){
+                            let angelIndex = angelArray[angelArray.length-1];
+                            let angelState = result.getAngelStateCompareTwoPose(angelIndex);
+                            guiState.lowConfidenceAngel = {index:angelIndex,state:angelState};
+                        }
+                        let mask  = andMask(angleLowConfidenceJointMask,currentMask)
+                        drawSkeletonWithMask(pose.keypoints,cctx,mask,'orange')
                     }
                 }
                 else {
@@ -381,7 +388,7 @@ function detectPoseInRealTime(net,video,camera,poseFile) {
         partMarks.splice(0,length)
     }
 
-    setInterval(computeTotalMark,1000)
+    setInterval(computeTotalMark,2000)
 
     poseDetectionFrame()
 }

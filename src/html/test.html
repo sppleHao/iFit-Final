@@ -13,6 +13,8 @@
     <meta http-equiv="Cache-Control" content="no-siteapp"/>
     <meta name="author" content="http://www.imj2.com/" />
     <link rel="alternate icon" type="image/png" href="../J2/views/IMJ2V2/images/logo_head.png">
+    <link type="text/css" href="../J2/views/IMJ2V2/css/loading.css" rel="stylesheet" />
+
 
     <link rel="stylesheet" href="../J2/views/IMJ2V2/css/amazeui.min.css">
     <link rel="stylesheet" href="../J2/views/IMJ2V2/css/style.css">
@@ -97,30 +99,48 @@
 
     </ul>
 </nav>
-<section id="section" class="am-container m-service-page" >
-    <div class="m-service-container am-avg-sm-2" >
-        <!--横向排列两个视频-->
-        <video id="trainVideo"  width="540" height="480" controls="controls" style="flex:1;float:left;display: none">
-        </video>
-        <video id="camera" width="540" height="480" controls="controls" style="flex:1;float:right;display: none"></video>
-        <canvas id="coutput" width="540" height="480" style="flex:1;float:left"></canvas>
-        <canvas id="voutput" width="540" height="480" style="flex:1;float:right"></canvas>
+<div id="app">
+    <div class="text-wrapper">
+        <div class="text part1">
+            <div>
+                <span class="letter"><div class="character">L</div> <span></span></span>
+                <span class="letter"><div class="character">o</div> <span></span></span>
+                <span class="letter"><div class="character">a</div> <span></span></span>
+                <span class="letter"><div class="character">d</div> <span></span></span>
+                <span class="letter"><div class="character">i</div> <span></span></span>
+                <span class="letter"><div class="character">n</div> <span></span></span>
+                <span class="letter"><div class="character">g</div> <span></span></span>
+            </div>
+        </div>
+        <div class="how-to"><span>正在加载中，请您耐心等待...</span></div>
     </div>
-    <div class="am-g">
-        <!--style="position:relative;left:45%"-->
-        <div class="am-u-sm-4 am-u-md-4 am-u-lg-4" style=" min-height:1px;"></div>
-        <a id="button" class="am-btn am-btn-primary am-btn-xl am-radius am-u-sm-4 am-u-md-4 am-u-lg-4">开始</a>
-        <div class="am-u-sm-4 am-u-md-4 am-u-lg-4" style=" min-height:1px;"></div>
-    </div>
-    <!--style="font-size: 50px"-->
-    <div id="font"style="font-size: 50px;text-align: center"></div>
-    <!--style="font-size: 75px;width:100%;color:red;align-content: center"-->
-    <div id="mark" style="font-size: 75px;width:100%;color:red;text-align: center"></div>
-    <!--style="font-size: 75px;width:100%;color: green;align-content: center"-->
-    <div id="final" style="font-size: 75px;width:100%;color: green;text-align: center"></div>
-    <img id="good"src="../J2/views/IMJ2V2/images/good.png" style="display: none">
-    <img id="perfect"src="../J2/views/IMJ2V2/images/perfect.png" style="display: none">
-</section>
+</div>
+<div id="main" style="display: none">
+    <section id="section" class="am-container m-service-page" >
+        <div class="m-service-container am-avg-sm-2" >
+            <!--横向排列两个视频-->
+            <video id="trainVideo"  width="540" height="480" controls="controls" style="flex:1;float:left;display: none">
+            </video>
+            <video id="camera" width="540" height="480" controls="controls" style="flex:1;float:right;display: none"></video>
+            <canvas id="coutput" width="540" height="480" style="flex:1;float:left"></canvas>
+            <canvas id="voutput" width="540" height="480" style="flex:1;float:right"></canvas>
+        </div>
+        <div class="am-g">
+            <!--style="position:relative;left:45%"-->
+            <div class="am-u-sm-4 am-u-md-4 am-u-lg-4" style=" min-height:1px;"></div>
+            <a id="button" class="am-btn am-btn-primary am-btn-xl am-radius am-u-sm-4 am-u-md-4 am-u-lg-4">开始</a>
+            <div class="am-u-sm-4 am-u-md-4 am-u-lg-4" style=" min-height:1px;"></div>
+        </div>
+        <!--style="font-size: 50px"-->
+        <div id="font"style="font-size: 50px;text-align: center"></div>
+        <!--style="font-size: 75px;width:100%;color:red;align-content: center"-->
+        <div id="mark" style="font-size: 75px;width:100%;color:red;text-align: center"></div>
+        <!--style="font-size: 75px;width:100%;color: green;align-content: center"-->
+        <div id="final" style="font-size: 75px;width:100%;color: green;text-align: center"></div>
+        <img id="good"src="../J2/views/IMJ2V2/images/good.png" style="display: none">
+        <img id="perfect"src="../J2/views/IMJ2V2/images/perfect.png" style="display: none">
+    </section>
+</div>
 <p style="height: 50px"></p>
 <footer class="m-footer">
 
