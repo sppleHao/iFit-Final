@@ -235,7 +235,7 @@ function detectPoseInRealTime(net,model,camera,poseFile) {
                             //voice
                         }
 
-                        font.innerText = score.toString()
+                        // font.innerText = score.toString()
                     }
                     else {
                         //show pose track

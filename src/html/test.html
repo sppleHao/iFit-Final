@@ -119,9 +119,10 @@
     <section id="section" class="am-container m-service-page" >
         <div class="m-service-container am-avg-sm-2" >
             <!--横向排列两个视频-->
-            <video id="trainVideo"  width="540" height="480" controls="controls" style="flex:1;float:left;display: none">
+            <canvas id="origin" style="display: none"></canvas>
+            <video id="trainVideo"  width="540" height="480" controls="controls" style="flex:1;float:left;display: none;">
             </video>
-            <video id="camera" width="540" height="480" controls="controls" style="flex:1;float:right;display: none"></video>
+            <video id="camera" width="540" height="480" controls="controls" style="flex:1;float:right;display: none;"></video>
             <canvas id="coutput" width="540" height="480" style="flex:1;float:left"></canvas>
             <canvas id="voutput" width="540" height="480" style="flex:1;float:right"></canvas>
         </div>

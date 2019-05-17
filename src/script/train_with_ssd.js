@@ -300,7 +300,7 @@ const guiState = {
     },
     personDetection:{
         open:false,
-        interval:200,
+        interval:500,
     },
     deactivateArray:[]
 }
