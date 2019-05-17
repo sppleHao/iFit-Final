@@ -108,10 +108,10 @@ export function angelVoice(angelIndex,state,flip) {
     }
     else {
         if (flip){
-            str = AngelKeysInChineseInStateOneFlip[angelIndex]
+            str = AngelKeysInChineseInStateOne[angelIndex]
         }
         else {
-            str = AngelKeysInChineseInStateOne[angelIndex]
+            str = AngelKeysInChineseInStateOneFlip[angelIndex]
         }
     }
 

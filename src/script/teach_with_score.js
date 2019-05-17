@@ -114,6 +114,7 @@ function setupFPS() {
  */
 function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
     let font = document.getElementById('font')
+    console.log(video)
 
     //camera canvas
     const ccanvas = loadCanvas('coutput',videoConfig.width,videoConfig.height)
@@ -128,7 +129,7 @@ function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
 
     let detection = setInterval(detectPersons,guiState.personDetection.interval)
 
-    let detectionGlobal = setInterval(detectPersonsGlobal,1500)
+    // let detectionGlobal = setInterval(detectPersonsGlobal,1500)
 
     async function detectPersons() {
         // console.time('detect')
@@ -226,6 +227,12 @@ function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
 
         if (videoConfig.videoState=='ended'){
             startIndex = 0
+        }
+
+        if (guiState.changeNetwork){
+            // net.dispose()
+            net = await loadModel.load(guiState.changeNetwork)
+            guiState.changeNetwork = null
         }
 
         if (guiState.changeVideoName){
@@ -649,19 +656,22 @@ function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
                 }
             }
             else {
-                await onlyDrawInCanvas()
+                await normalEstimate()
             }
             //get the pose
+        }
+        else if(ssd==null){
+            await normalEstimate()
         }
         else {
             if (guiState.person.length>0){
                 await normalEstimate()
             }
             else {
-                await onlyDrawInCanvas()
+                await normalEstimate()
             }
-
         }
+
 
 
         //get fps
@@ -675,7 +685,7 @@ function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
     }
 
     let voice = setInterval(()=>{
-        if (videoConfig.videoState!='play'&&guiState.person.length>0){
+        // if (videoConfig.videoState!='play'&&guiState.person.length>0){
             //if read (5s interval)
             if (guiState.lowConfidenceAngel != null) {
                 //no pass
@@ -699,8 +709,9 @@ function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
                 }
                 guiState.noPassTime = 0
             }
-        }
-    },1500)
+            // console.log(guiState.noPassTime,guiState.passTime)
+        // }
+    },1000)
 
     stats.end()
 
@@ -901,7 +912,15 @@ async function loadPoseFile(){
 async function runDemo(){
 
     //load ssd model
-    let ssd = await cocoSsd.load()
+    let ssd = null
+    try {
+         ssd = await cocoSsd.load()
+    }
+    catch (e) {
+        console.log(e)
+    }
+
+
 
     //load pose model
     let net =await loadModel.load(guiState.net)

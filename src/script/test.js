@@ -156,7 +156,7 @@ function computeFinalMark() {
     let mark = 0;
     let length = totalMarks.length;
     if (length>0){
-        mark = math.mean(totalMarks)
+        mark = math.median(totalMarks)
     }
     console.log(mark)
 

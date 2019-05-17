@@ -217,7 +217,7 @@ function detectPoseInRealTime(net,model,camera,poseFile) {
                             //voice
                         }
 
-                        font.innerText = score.toString()
+                        // font.innerText = score.toString()
                     }
                     else if (startIndex==poseFile.length-1){
                         //compare pose and change state
