@@ -552,7 +552,13 @@ async function loadPoseFile(){
 async function runDemo(){
 
     //load ssd model
-    let ssd = await cocoSsd.load()
+    let ssd = null
+    try {
+     ssd = await cocoSsd.load()   
+    }
+    catch (e) {
+
+    }
 
     //load pose model
     let net =await loadModel.load(guiState.net)

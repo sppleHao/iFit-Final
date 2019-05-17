@@ -201,7 +201,25 @@ function interactions(webcam) {
         //1.detect Face LandMarks
         //1.检测人脸边缘
         // console.log(input)
-        let face = await faceapi.detectSingleFace(webcam).withFaceLandmarks()
+        let faces = await faceapi.detectAllFaces(webcam).withFaceLandmarks()
+
+        let maxFaceArea = 0;
+        let maxFaceIndex = -1;
+
+        for (let i=0;i<faces.length;i++){
+            let face = faces[i]
+            let area = face.detection.box.area
+            if (area>maxFaceArea) {
+                maxFaceArea = area
+                maxFaceIndex = i
+            }
+        }
+
+        let face;
+
+        if (maxFaceIndex!=-1){
+            face = faces[maxFaceIndex]
+        }
 
         //2.draw camera image and mark line in canvas
         //2.将摄像头获得的画面画到canvas上并画出得分条
