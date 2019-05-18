@@ -701,7 +701,8 @@ function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
             else {
                 //pass
                 if (guiState.passTime==2){
-                    simpleVoice("继续保持")
+                    // simpleVoice("继续保持")
+                    simpleVoice("please keep on")
                     guiState.passTime = 0
                 }
                 else {
@@ -914,7 +915,7 @@ async function runDemo(){
     //load ssd model
     let ssd = null
     try {
-         ssd = await cocoSsd.load()
+         // ssd = await cocoSsd.load()
     }
     catch (e) {
         console.log(e)
