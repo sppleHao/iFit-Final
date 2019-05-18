@@ -70,7 +70,7 @@ function cos(tensor1,tensor2) {
  * @param joint2
  * @returns {*}
  */
-function euclidean(joint1,joint2) {
+export function euclidean(joint1,joint2) {
     return norm(getTensorSub(toTuple(joint1.position),toTuple(joint2.position)))
 }
 
