@@ -400,7 +400,13 @@ function setupGui(videoList) {
 async function runDemo(){
 
     //load ssd model
-    let ssd = await cocoSsd.load()
+    let ssd = null
+    try {
+        ssd = await cocoSsd.load()
+    }
+    catch (e) {
+        console.log(e)
+    }
 
     //load pose model
     let iFitNet =await loadModel.load('HRNet')

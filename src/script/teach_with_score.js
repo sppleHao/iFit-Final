@@ -689,7 +689,7 @@ function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
             //if read (5s interval)
             if (guiState.lowConfidenceAngel != null) {
                 //no pass
-                if (guiState.noPassTime==5) {
+                if (guiState.noPassTime==2) {
                     angelVoice(guiState.lowConfidenceAngel.index, guiState.lowConfidenceAngel.state,!guiState.output.flipHorizontal)
                     guiState.noPassTime=0;
                 }
@@ -700,7 +700,7 @@ function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
             }
             else {
                 //pass
-                if (guiState.passTime==5){
+                if (guiState.passTime==2){
                     simpleVoice("继续保持")
                     guiState.passTime = 0
                 }
