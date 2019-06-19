@@ -161,7 +161,7 @@ const AngelKeysInStateZeroFlip = [
 
 const angels = getAngles();
 
-export function angelVoice(angelIndex,state,flip,inChinese=false) {
+export function angelVoice(angelIndex,state,flip,inChinese=true) {
     // baidu TTS
     let str = ""
 

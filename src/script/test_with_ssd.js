@@ -914,7 +914,7 @@ async function runDemo(){
     //load ssd model
     let ssd = null
     try {
-        ssd = await cocoSsd.load()
+        // ssd = await cocoSsd.load()
     }
     catch (e) {
         console.log(e)

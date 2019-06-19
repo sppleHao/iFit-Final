@@ -555,11 +555,13 @@ function detectPoseInRealTime(ssd,net,video,camera,poseFile) {
                         // font.innerText = '通过'
                     }
 
-                    if (isPass&&videoConfig.videoState!='ended'){
-                        video.play()
-                    }
-                    else {
-                        video.pause()
+                    if (videoConfig.videoState!='ended'){
+                        if (isPass){
+                            video.play()
+                        }
+                        else {
+                            video.pause()
+                        }
                     }
                 })
 
@@ -915,7 +917,7 @@ async function runDemo(){
     //load ssd model
     let ssd = null
     try {
-         // ssd = await cocoSsd.load()
+         ssd = await cocoSsd.load()
     }
     catch (e) {
         console.log(e)
